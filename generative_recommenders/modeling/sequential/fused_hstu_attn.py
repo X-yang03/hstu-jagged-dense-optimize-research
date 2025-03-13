@@ -1,5 +1,3 @@
-# 经过测试，由于要重复计算指针，速度不如v1
-
 import torch
 import triton
 import triton.language as tl
@@ -54,30 +52,28 @@ def hstu_fused_attention_kernel(
         )
         # tl.static_print("k_ptrs shape", k_ptrs)
         # tl.static_print("v_ptrs shape", v_ptrs)
-        #加载K和V的块， K_i V_i
         k = tl.load(k_ptrs)
         v = tl.load(v_ptrs)
 
-        
-        for block_q in range(0, N, BLOCK_SIZE_N):
-            q_ptrs = tl.make_block_ptr(
+        #计算q和output的初始指针
+        q_ptrs = tl.make_block_ptr(
                     base = Q_ptr + pid_b*stride_qb + pid_h*stride_qh,
                     shape = (N,D),
                     strides = (stride_qn, stride_qd),
-                    offsets = (block_q, 0),
+                    offsets = (0, 0),
                     block_shape = (BLOCK_SIZE_N, D),
                     order = (0, 1)
             )
-            #tl.static_print("q_ptrs shape",q_ptrs)
-            o_ptrs = tl.make_block_ptr(
+
+        o_ptrs = tl.make_block_ptr(
                     base = Out_ptr + pid_b*stride_out_b + pid_h*stride_out_h,
                     shape = (N,D),
                     strides = (stride_out_n, stride_out_d),
-                    offsets = (block_q, 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
+                    offsets = (0, 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
                     block_shape = (BLOCK_SIZE_N, D),
                     order = (0, 1)
             )
-            #tl.static_print("o_ptrs shape", o_ptrs)
+        for block_q in range(0, N, BLOCK_SIZE_N):
             #加载Q的块 Q_j
             q = tl.load(q_ptrs)
             #加载output的块  O_j
@@ -92,10 +88,12 @@ def hstu_fused_attention_kernel(
             o += attn
             #stroe O_j
             tl.store(o_ptrs, o)
+            q_ptrs = tl.advance(q_ptrs, (BLOCK_SIZE_N,0))
+            o_ptrs = tl.advance(o_ptrs, (BLOCK_SIZE_N,0))
             #pass
 
 
-def hstu_fused_attention(q, k, v, rab, enable_rab):  #N为padded后的长度， 输入的q, k 形状为[B, N, H*D], v形状为[B, N, H*D]
+def hstu_fused_attention_v1(q, k, v, rab, enable_rab):  #N为padded后的长度， 输入的q, k 形状为[B, N, H*D], v形状为[B, N, H*D]
     B,N,H,D = q.shape
     
     q = q.permute(0,2,1,3).contiguous() #[B, N, H, D] -> [B, H, N, D]
@@ -126,6 +124,6 @@ def hstu_fused_attention(q, k, v, rab, enable_rab):  #N为padded后的长度， 
     )
     end_event.record()
     torch.cuda.synchronize()
-    print("Triton Time: ", start_event.elapsed_time(end_event))
+    print("Triton Time v1: ", start_event.elapsed_time(end_event))
     
     return output
