@@ -69,7 +69,7 @@ def hstu_fused_attention_kernel(
                 order = (0, 1)
         )
         q = tl.load(q_ptrs)
-        qk = tl.dot(q, k.T)
+        qk = tl.dot(q, k.T,input_precision = "ieee")
         tl.store(o_ptrs, qk)
         #pass
 

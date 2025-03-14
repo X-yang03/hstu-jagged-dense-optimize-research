@@ -46,9 +46,7 @@ def hstu_fused_attention_kernel(
         )
         # tl.static_print("k_ptrs shape", k_ptrs)
         # tl.static_print("v_ptrs shape", v_ptrs)
-        k = tl.load(k_ptrs)
-
-        #TODO : 加载K和V的块， K_i V_i
+        k = tl.load(k_ptrs).to(tl.float32)
 
         for block_q in range(0, N, BLOCK_SIZE_N):
             q_ptrs = tl.make_block_ptr(
@@ -68,8 +66,8 @@ def hstu_fused_attention_kernel(
                     block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
                     order = (0, 1)
             )
-            q = tl.load(q_ptrs)
-            qk = tl.dot(q, k.T)
+            q = tl.load(q_ptrs).to(tl.float32)
+            qk = tl.dot(q, k.T,input_precision = "ieee").to(tl.float32)
             tl.store(o_ptrs, qk)
             #pass
 

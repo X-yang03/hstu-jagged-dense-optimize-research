@@ -1,11 +1,16 @@
 import triton
 import triton.language as tl
 import torch
+import torch.profiler
+from torch.profiler import profile, record_function, ProfilerActivity, tensorboard_trace_handler
+import time
+log_dir = './log_dir'
 
 @triton.autotune(
     configs=[
-        triton.Config({"BLOCK_M": 64, "BLOCK_N": 64, "BLOCK_D": 32}, num_warps=4),
-        triton.Config({"BLOCK_M": 128, "BLOCK_N": 128, "BLOCK_D": 32}, num_warps=8),
+        triton.Config({"BLOCK_M": 64, "BLOCK_N": 64,"BLOCK_D":64}, num_warps=4, num_stages=3),
+        #triton.Config({"BLOCK_M": 128, "BLOCK_N": 128,"BLOCK_D":64}, num_warps=8, num_stages=3),
+        #triton.Config({"BLOCK_M": 64, "BLOCK_N": 128,"BLOCK_D":64}, num_warps=8, num_stages=3),
     ],
     key=["n", "attention_dim"],
 )
@@ -26,12 +31,10 @@ def batched_matmul_kernel(
     # 初始化累加器
     acc = tl.zeros((BLOCK_M, BLOCK_N), dtype=tl.float32)
 
-    # 分块加载 q 和 k
+    # 分块加载 q 和 k,形状分别为(M,D)和(N,D)
     q_ptrs = q_ptr + pid_batch * stride_a_batch + (pid_m * BLOCK_M + tl.arange(0, BLOCK_M))[:, None] * stride_a_m + tl.arange(0, BLOCK_D)[None, :] * stride_a_k
     k_ptrs = k_ptr + pid_batch * stride_b_batch + (pid_n * BLOCK_N + tl.arange(0, BLOCK_N))[None, :] * stride_b_n + tl.arange(0, BLOCK_D)[:, None] * stride_b_k
-
-    tl.static_print("q_ptrs", q_ptrs.shape)
-    tl.static_print("k_ptrs", k_ptrs.shape)
+    #tl.static_print("pid_batch", pid_batch)
     # 分块计算矩阵乘法
     for d in range(0, attention_dim, BLOCK_D):
         q = tl.load(q_ptrs, mask=(d + tl.arange(0, BLOCK_D))[None,:] < attention_dim, other=0.0)
@@ -52,13 +55,18 @@ def triton_batched_matmul(padded_q, padded_k):
     q = padded_q.view(B * num_heads, n, attention_dim).contiguous()
     k = padded_k.view(B * num_heads, n, attention_dim).contiguous()
     assert q.dim() == 3 and k.dim() == 3
-    Bn, M, D = q.shape
+    Bn, M, D = q.shape  # M和N其实是长度n
     _, N, D = k.shape
     attn = torch.empty((Bn, M, N), device=q.device, dtype=q.dtype)
 
     # 网格配置
     grid = lambda meta : (Bn, triton.cdiv(M, meta["BLOCK_M"]), triton.cdiv(N, meta["BLOCK_N"]))
 
+    start_event = torch.cuda.Event(enable_timing=True)
+    end_event = torch.cuda.Event(enable_timing=True)
+
+    # 记录开始时间
+    start_event.record()
     # 调用内核
     batched_matmul_kernel[grid](
         q, k, attn,
@@ -68,4 +76,8 @@ def triton_batched_matmul(padded_q, padded_k):
         attn.stride(0), attn.stride(1), attn.stride(2),
         #BLOCK_M=64, BLOCK_N=64, BLOCK_D=32,
     )
+    # 记录结束时间
+    end_event.record()
+    torch.cuda.synchronize()
+    print("Triton Time: ", start_event.elapsed_time(end_event))
     return attn

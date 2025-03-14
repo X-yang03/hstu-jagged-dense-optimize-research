@@ -48,7 +48,7 @@ def batched_matmul_kernel(
     # 分块计算矩阵乘法
     q = tl.load(q_ptrs)
     k = tl.load(k_ptrs)
-    acc += tl.dot(q, k)
+    acc += tl.dot(q, k,input_precision = "ieee")
 
     # 写回结果, stride_attn_m为N，?=BLOCK_N,所以地址不连续
     attn_ptrs = attn_ptr + pid_batch * stride_attn_bn +\

@@ -9,6 +9,10 @@ import triton
 import triton.language as tl
 import torch
 
+@triton.jit
+def silu(x):
+    return x*tl.sigmoid(x)  #和用F.silu会导致平均4.46的误差？
+
 @triton.autotune(
     configs=[
         #triton.Config({"BLOCK_M": 64, "BLOCK_N": 64}, num_warps=4, num_stages=3),
@@ -59,13 +63,14 @@ def batched_matmul_kernel(
     # 分块计算矩阵乘法
     q = tl.load(q_ptrs)
     k = tl.load(k_ptrs)
-    acc += tl.dot(q, k.T)
+    qk = tl.dot(q, k.T,input_precision = "ieee")
+    qk = silu(qk)/n
 
     # 写回结果, stride_attn_m为N，?=BLOCK_N,所以地址不连续
     attn_ptrs = attn_ptr + pid_batch * stride_attn_bn +\
                  (pid_m * BLOCK_M + tl.arange(0, BLOCK_M))[:, None] * stride_attn_m +\
                  (pid_n * BLOCK_N + tl.arange(0, BLOCK_N))[None, :] * stride_attn_d
-    tl.store(attn_ptrs, acc.to(tl.float16 if q_ptr.dtype == tl.float16 else tl.float32))
+    tl.store(attn_ptrs, qk.to(tl.float16 if q_ptr.dtype == tl.float16 else tl.float32))
 
 
 def triton_batched_matmul_v2(padded_q, padded_k):
