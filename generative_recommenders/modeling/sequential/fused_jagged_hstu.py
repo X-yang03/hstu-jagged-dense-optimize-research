@@ -77,7 +77,20 @@ def fused_jagged_hstu_kernel(
                     block_shape = (BLOCK_SIZE_N, D),
                     order = (0, 1)
                 )
+                o_block_ptrs = tl.make_block_ptr(
+                    base = Out_ptr + pid_b*stride_out_b + pid_h*stride_out_h,
+                    shape = (N,D),
+                    strides = (stride_out_n, stride_out_d),
+                    offsets = ((block_q * BLOCK_SIZE_N).to(tl.int32), 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
+                    block_shape = (BLOCK_SIZE_N, D),
+                    order = (0, 1)
+                )
                 q = tl.load(q_block_ptrs)
+                o = tl.load(o_block_ptrs)
+                qk = tl.dot(q, k.T, input_precision="ieee")
+                attn = tl.dot(qk, v, input_precision="ieee")
+                o += attn
+                tl.store(o_block_ptrs, o)
             else:
                 q_ptrs = Q_ptr + pid_h * stride_qh + start * stride_qn +\
                         (block_q * BLOCK_SIZE_N) * stride_qn + \
@@ -86,21 +99,17 @@ def fused_jagged_hstu_kernel(
                 mask = (block_q * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N))[:,None] < len_sample
                 q = tl.load(q_ptrs, mask=mask, other=0)
 
-            o_ptrs = tl.make_block_ptr(
-                    base = Out_ptr + pid_b*stride_out_b + pid_h*stride_out_h,
-                    shape = (N,D),
-                    strides = (stride_out_n, stride_out_d),
-                    offsets = ((block_q * BLOCK_SIZE_N).to(tl.int32), 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
-                    block_shape = (BLOCK_SIZE_N, D),
-                    order = (0, 1)
-            )
-            
-            #q = tl.load(q_ptrs)
-            o = tl.load(o_ptrs)
-            qk = tl.dot(q, k.T, input_precision="ieee")
-            attn = tl.dot(qk, v, input_precision="ieee")
-            o += attn
-            tl.store(o_ptrs, o)
+                o_ptrs = Out_ptr + pid_b*stride_out_b + pid_h*stride_out_h +\
+                        (block_q * BLOCK_SIZE_N) * stride_out_n + \
+                        tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_out_n + \
+                        tl.arange(0, D)[None, :] * stride_out_d
+                
+                #q = tl.load(q_ptrs)
+                o = tl.load(o_ptrs, mask=mask, other=0)
+                qk = tl.dot(q, k.T, input_precision="ieee")
+                attn = tl.dot(qk, v, input_precision="ieee")
+                o += attn
+                tl.store(o_ptrs, o, mask=mask)
 
 
 def fused_jagged_hstu(q, k, v, head, dim, n, x_offsets):  #n为最长序列长度

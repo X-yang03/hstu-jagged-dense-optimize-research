@@ -5,7 +5,7 @@ from fused_jagged_hstu import fused_jagged_hstu
 import random
 import fbgemm_gpu
 
-interval = [256,512,1024]
+interval = [250,510,1020]
 n = max(interval)
 B = 20
 x_offsets = [0]
@@ -51,4 +51,3 @@ print(output[0, 0, 0, 10])
 print("output shape: ", output.shape)
 print("avg diff: ", torch.mean(torch.abs(attn_output - output)))
 print("max diff: ", torch.max(torch.abs(attn_output - output)))
-print("max diff at: ", torch.argmax(torch.abs(attn_output - output)))
