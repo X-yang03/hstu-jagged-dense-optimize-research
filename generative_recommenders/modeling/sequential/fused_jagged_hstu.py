@@ -46,18 +46,18 @@ def fused_jagged_hstu_kernel(
         if block_kv * BLOCK_SIZE_N + BLOCK_SIZE_N <= len_sample:   # 当前block的长度小于BLOCK_SIZE_N，直接读取
             k_block_ptrs = tl.make_block_ptr(
                 base=K_ptr + pid_h * stride_kh + start * stride_kn,  # 当前sequence的起始位置
-                shape = (len_sample, D),
+                shape = (len_sample.to(tl.int32), D),   #在triton 2.2.0中，必须加入to(tl.int32)；在triton 3.2.0中，不需要
                 strides = (stride_kn, stride_kd),
-                offsets = ((block_kv * BLOCK_SIZE_N).to(tl.int32), 0),
+                offsets = (block_kv * BLOCK_SIZE_N, 0),  #在triton 2.2.0 中，offsets必须是int64; triton 3.2.0中，offsets是int32
                 block_shape = (BLOCK_SIZE_N, D),
                 order = (0, 1)
             )
 
             v_block_ptrs = tl.make_block_ptr(
                 base=V_ptr + pid_h * stride_vh + start * stride_vn,
-                shape = (len_sample, D),
+                shape = (len_sample.to(tl.int32), D),
                 strides = (stride_vn, stride_vd),
-                offsets = ((block_kv * BLOCK_SIZE_N).to(tl.int32), 0),
+                offsets = ((block_kv * BLOCK_SIZE_N).to(tl.int64), 0),
                 block_shape = (BLOCK_SIZE_N, D),
                 order = (0, 1)
             )
@@ -84,9 +84,9 @@ def fused_jagged_hstu_kernel(
             if block_q * BLOCK_SIZE_N + BLOCK_SIZE_N <= len_sample:
                 q_block_ptrs = tl.make_block_ptr(
                     base=Q_ptr + pid_h * stride_qh + start * stride_qn, # 当前sequence的Q起始位置
-                    shape = (len_sample, D),
+                    shape = (len_sample.to(tl.int32), D),
                     strides = (stride_qn, stride_qd),
-                    offsets = ((block_q * BLOCK_SIZE_N).to(tl.int32), 0),
+                    offsets = ((block_q * BLOCK_SIZE_N), 0),
                     block_shape = (BLOCK_SIZE_N, D),
                     order = (0, 1)
                 )
@@ -94,15 +94,15 @@ def fused_jagged_hstu_kernel(
                     base = Out_ptr + pid_b*stride_out_b + pid_h*stride_out_h,
                     shape = (N,D),
                     strides = (stride_out_n, stride_out_d),
-                    offsets = ((block_q * BLOCK_SIZE_N).to(tl.int32), 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
+                    offsets = ((block_q * BLOCK_SIZE_N), 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
                     block_shape = (BLOCK_SIZE_N, D),
                     order = (0, 1)
                 )
                 q = tl.load(q_block_ptrs)
                 o = tl.load(o_block_ptrs)
-                qk = silu(tl.dot(q, k.T, input_precision="ieee"))/N
+                qk = silu(tl.dot(q, k.T))/N
                 
-                attn = tl.dot(qk, v, input_precision="ieee")
+                attn = tl.dot(qk, v)
                 o += attn
                 tl.store(o_block_ptrs, o)
             else:
@@ -120,8 +120,8 @@ def fused_jagged_hstu_kernel(
                 
                 #q = tl.load(q_ptrs)
                 o = tl.load(o_ptrs, mask=mask, other=0)
-                qk = silu(tl.dot(q, k.T, input_precision="ieee"))/N
-                attn = tl.dot(qk, v, input_precision="ieee")
+                qk = silu(tl.dot(q, k.T))/N
+                attn = tl.dot(qk, v)
                 o += attn
                 tl.store(o_ptrs, o, mask=mask)
 
