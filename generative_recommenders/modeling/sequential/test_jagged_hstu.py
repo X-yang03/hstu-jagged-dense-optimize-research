@@ -6,7 +6,7 @@ import random
 import fbgemm_gpu
 from fused_hstu_attn import hstu_fused_attention_v1
 
-interval = [512]
+interval = [256, 510, 1020]
 n = max(interval)
 B = 20
 x_offsets = [0]
@@ -48,13 +48,16 @@ qk_attn = torch.einsum(
 qk_attn = qk_attn + rab
 qk_attn = F.silu(qk_attn) / n #SiLU之后局部归一化
 qk_attn = qk_attn * attn_mask
-attn_output = torch.einsum(
+attn_output = torch.ops.fbgemm.dense_to_jagged( #Φ(qk)v  , dense_to_jagged将输出转换为(sum_N, head*d)形状
+        torch.einsum(
             "bhnm,bmhd->bnhd",
             qk_attn,
             torch.ops.fbgemm.jagged_to_padded_dense(v, [x_offsets], [n]).reshape(
                 B, n, head, d  #将v转换为padded形式
             ),
-        )
+        ).reshape(B, n, head * d), 
+        [x_offsets],
+    )[0]
 # 记录结束时间
 end_event.record()
 torch.cuda.synchronize()
@@ -81,24 +84,28 @@ qk_attn = torch.einsum(
 qk_attn += rab
 qk_attn = F.silu(qk_attn) / n #SiLU之后局部归一化
 qk_attn = qk_attn * attn_mask
-attn_output = torch.einsum(
+attn_output = torch.ops.fbgemm.dense_to_jagged( #Φ(qk)v  , dense_to_jagged将输出转换为(sum_N, head*d)形状
+        torch.einsum(
             "bhnm,bmhd->bnhd",
             qk_attn,
             torch.ops.fbgemm.jagged_to_padded_dense(v, [x_offsets], [n]).reshape(
                 B, n, head, d  #将v转换为padded形式
             ),
-        )
+        ).reshape(B, n, head * d), 
+        [x_offsets],
+    )[0]
 # 记录结束时间
 end_event.record()
 torch.cuda.synchronize()
 print("einsum Time: {}ms ".format(start_event.elapsed_time(end_event)))
 
 print("attn_output shape: ", attn_output.shape)
-print(attn_output[0, 0, 0, 10])
-output = fused_jagged_hstu(q, k, v, rab, attn_mask, head, d, n, x_offsets).permute(0, 2, 1, 3)
-output1 = fused_jagged_hstu(q, k, v, rab, attn_mask, head, d, n, x_offsets).permute(0, 2, 1, 3)
-print(output[0, 0, 0, 10])
+print(attn_output[0, 10])
+output = fused_jagged_hstu(q, k, v, rab, attn_mask, head, d, n, x_offsets).permute(1, 0, 2).contiguous().view(sum_N, head*d)
+output1 = fused_jagged_hstu(q, k, v, rab, attn_mask, head, d, n, x_offsets).permute(1, 0, 2).contiguous().view(sum_N, head*d)
 print("output shape: ", output.shape)
+print(output[0, 10])
+
 print("avg diff: ", torch.mean(torch.abs(attn_output - output)))
 print("max diff: ", torch.max(torch.abs(attn_output - output)))
 print("min diff: ", torch.min(torch.abs(attn_output - output)))

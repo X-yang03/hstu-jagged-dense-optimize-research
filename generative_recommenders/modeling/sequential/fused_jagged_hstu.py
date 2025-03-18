@@ -31,7 +31,7 @@ def fused_jagged_hstu_kernel(
     stride_vh, stride_vn, stride_vd,
     stride_rab_b, stride_rab_h, stride_rab_n, stride_rab_m,
     stride_mask_n, stride_mask_m,
-    stride_out_b, stride_out_h, stride_out_n, stride_out_d,
+    stride_out_h, stride_out_n, stride_out_d,
     BLOCK_SIZE_N: tl.constexpr
     
 ):
@@ -105,8 +105,8 @@ def fused_jagged_hstu_kernel(
                     order = (0, 1)
                 )
                 o_block_ptrs = tl.make_block_ptr(
-                    base = Out_ptr + pid_b*stride_out_b + pid_h*stride_out_h,
-                    shape = (N,D),
+                    base = Out_ptr + pid_h*stride_out_h + start*stride_out_n,
+                    shape = (len_sample.to(tl.int32) , D),
                     strides = (stride_out_n, stride_out_d),
                     offsets = ((block_q * BLOCK_SIZE_N).to(tl.int32), 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
                     block_shape = (BLOCK_SIZE_N, D),
@@ -132,7 +132,7 @@ def fused_jagged_hstu_kernel(
                 o += attn
                 tl.store(o_block_ptrs, o)
             else:
-                tl.device_print("jagged")
+                #tl.device_print("jagged")
                 q_ptrs = Q_ptr + pid_h * stride_qh + start * stride_qn +\
                         (block_q * BLOCK_SIZE_N) * stride_qn + \
                     tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_qn + \
@@ -140,7 +140,7 @@ def fused_jagged_hstu_kernel(
                 mask = (block_q * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N))[:,None] < len_sample
                 q = tl.load(q_ptrs, mask=mask, other=0)
 
-                o_ptrs = Out_ptr + pid_b*stride_out_b + pid_h*stride_out_h +\
+                o_ptrs = Out_ptr + pid_h*stride_out_h + start * stride_out_n +\
                         (block_q * BLOCK_SIZE_N) * stride_out_n + \
                         tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_out_n + \
                         tl.arange(0, D)[None, :] * stride_out_d
@@ -175,7 +175,8 @@ def fused_jagged_hstu(q, k, v, rab, attn_mask, head, dim, n, x_offsets):  #n为�
     v = v.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d
 
     B = len(x_offsets) - 1
-    output = torch.zeros(B, head, n, dim, device=q.device, dtype=q.dtype)
+    #output = torch.zeros(B, head, n, dim, device=q.device, dtype=q.dtype)
+    output = torch.zeros_like(q)  # (head, sum_N, d)
 
     grid = (head, B)
 
@@ -195,7 +196,7 @@ def fused_jagged_hstu(q, k, v, rab, attn_mask, head, dim, n, x_offsets):  #n为�
         v.stride(0), v.stride(1), v.stride(2),
         rab.stride(0), rab.stride(1), rab.stride(2), rab.stride(3),
         attn_mask.stride(2), attn_mask.stride(3),
-        output.stride(0), output.stride(1), output.stride(2), output.stride(3),
+        output.stride(0), output.stride(1), output.stride(2)
     )
     # 记录结束时间
     end_event.record()
