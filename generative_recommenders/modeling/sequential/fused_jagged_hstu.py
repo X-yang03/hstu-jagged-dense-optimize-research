@@ -6,16 +6,30 @@ import triton
 import triton.language as tl
 
 @triton.jit
+def silu(x):
+    return x*tl.sigmoid(x) 
+
+
+@triton.autotune(
+    configs=[
+        triton.Config({"BLOCK_SIZE_N": 32}, num_warps=4,num_stages=3),
+        #triton.Config({"BLOCK_SIZE_N": 128}, num_warps=8),
+    ],
+    key=["N"],
+)
+
+@triton.jit
 def fused_jagged_hstu_kernel(
     Q_ptr, K_ptr, V_ptr,
     Out_ptr,
+    x_offsets_ptr,
     B, H, N, D :tl.constexpr,  # B: batch size, H: head, N: sequence length, D: hidden size
     stride_kh, stride_kn, stride_kd,
     stride_qh, stride_qn, stride_qd,
     stride_vh, stride_vn, stride_vd,
     stride_out_b, stride_out_h, stride_out_n, stride_out_d,
-    BLOCK_SIZE_N: tl.constexpr,
-    x_offsets_ptr
+    BLOCK_SIZE_N: tl.constexpr
+    
 ):
     pid_h = tl.program_id(0)
     pid_b = tl.program_id(1)
@@ -67,7 +81,6 @@ def fused_jagged_hstu_kernel(
             v = tl.load(v_ptrs, mask=mask, other=0)
 
         for block_q in range(n_blocks):  #load Q_j
-            q = tl.zeros((BLOCK_SIZE_N, D), dtype=tl.float32)
             if block_q * BLOCK_SIZE_N + BLOCK_SIZE_N <= len_sample:
                 q_block_ptrs = tl.make_block_ptr(
                     base=Q_ptr + pid_h * stride_qh + start * stride_qn, # 当前sequence的Q起始位置
@@ -87,7 +100,8 @@ def fused_jagged_hstu_kernel(
                 )
                 q = tl.load(q_block_ptrs)
                 o = tl.load(o_block_ptrs)
-                qk = tl.dot(q, k.T, input_precision="ieee")
+                qk = silu(tl.dot(q, k.T, input_precision="ieee"))/N
+                
                 attn = tl.dot(qk, v, input_precision="ieee")
                 o += attn
                 tl.store(o_block_ptrs, o)
@@ -106,7 +120,7 @@ def fused_jagged_hstu_kernel(
                 
                 #q = tl.load(q_ptrs)
                 o = tl.load(o_ptrs, mask=mask, other=0)
-                qk = tl.dot(q, k.T, input_precision="ieee")
+                qk = silu(tl.dot(q, k.T, input_precision="ieee"))/N
                 attn = tl.dot(qk, v, input_precision="ieee")
                 o += attn
                 tl.store(o_ptrs, o, mask=mask)
@@ -124,18 +138,25 @@ def fused_jagged_hstu(q, k, v, head, dim, n, x_offsets):  #n为最长序列长�
 
     grid = (head, B)
 
-    BLOCK_SIZE_N = 32
+    start_event = torch.cuda.Event(enable_timing=True)
+    end_event = torch.cuda.Event(enable_timing=True)
+    # 记录开始时间
+    start_event.record()
+
     fused_jagged_hstu_kernel[grid]( 
         q, k, v,
         output,
+        x_offsets,
         B, head, n, dim,
         k.stride(0), k.stride(1), k.stride(2),
         q.stride(0), q.stride(1), q.stride(2),
         v.stride(0), v.stride(1), v.stride(2),
         output.stride(0), output.stride(1), output.stride(2), output.stride(3),
-        BLOCK_SIZE_N,
-        x_offsets
     )
+    # 记录结束时间
+    end_event.record()
+    torch.cuda.synchronize()
+    print("Triton Time: {}ms ".format(start_event.elapsed_time(end_event)))
 
     return output
     
