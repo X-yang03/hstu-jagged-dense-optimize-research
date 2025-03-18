@@ -21,6 +21,8 @@ k = torch.randn(sum_N, head*d, device="cuda")
 v = torch.randn(sum_N, head*d, device="cuda")
 
 
+
+
 # 原本hstu计算
 padded_q = torch.ops.fbgemm.jagged_to_padded_dense(  #根据x_offsets的位置信息，将q和k转换为padded形式，统一为长为n的序列， [B, n, num_heads*dqk]
             values=q, offsets=[x_offsets], max_lengths=[n], padding_value=0.0
@@ -47,3 +49,4 @@ print(attn_output[0, 0, 0, 10])
 output = fused_jagged_hstu(q, k, v, head, d, n, x_offsets).permute(0, 2, 1, 3)
 print(output[0, 0, 0, 10])
 print("output shape: ", output.shape)
+print("avg diff: ", torch.mean(torch.abs(attn_output - output)))

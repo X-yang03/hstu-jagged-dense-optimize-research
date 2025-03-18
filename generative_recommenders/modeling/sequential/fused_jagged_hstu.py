@@ -27,26 +27,44 @@ def fused_jagged_hstu_kernel(
     n_blocks = tl.cdiv(len_sample, BLOCK_SIZE_N)
 
     for block_kv in range(n_blocks):  #load  K_i V_i
-        k_ptrs = tl.make_block_ptr(
-            base=K_ptr + pid_h * stride_kh + start * stride_kn,  # 当前sequence的起始位置
-            shape = (len_sample, D),
-            strides = (stride_kn, stride_kd),
-            offsets = ((block_kv * BLOCK_SIZE_N).to(tl.int32), 0),
-            block_shape = (BLOCK_SIZE_N, D),
-            order = (0, 1)
-        )
+        k = None
+        v = None
+        if block_kv * BLOCK_SIZE_N + BLOCK_SIZE_N <= len_sample:   # 当前block的长度小于BLOCK_SIZE_N，直接读取
+            k_ptrs = tl.make_block_ptr(
+                base=K_ptr + pid_h * stride_kh + start * stride_kn,  # 当前sequence的起始位置
+                shape = (len_sample, D),
+                strides = (stride_kn, stride_kd),
+                offsets = ((block_kv * BLOCK_SIZE_N).to(tl.int32), 0),
+                block_shape = (BLOCK_SIZE_N, D),
+                order = (0, 1)
+            )
 
-        v_ptrs = tl.make_block_ptr(
-            base=V_ptr + pid_h * stride_vh + start * stride_vn,
-            shape = (len_sample, D),
-            strides = (stride_vn, stride_vd),
-            offsets = ((block_kv * BLOCK_SIZE_N).to(tl.int32), 0),
-            block_shape = (BLOCK_SIZE_N, D),
-            order = (0, 1)
-        )
+            v_ptrs = tl.make_block_ptr(
+                base=V_ptr + pid_h * stride_vh + start * stride_vn,
+                shape = (len_sample, D),
+                strides = (stride_vn, stride_vd),
+                offsets = ((block_kv * BLOCK_SIZE_N).to(tl.int32), 0),
+                block_shape = (BLOCK_SIZE_N, D),
+                order = (0, 1)
+            )
 
-        k = tl.load(k_ptrs)
-        v = tl.load(v_ptrs)
+            k = tl.load(k_ptrs)
+            v = tl.load(v_ptrs)
+        else:  # 当前block的长度大于BLOCK_SIZE_N，需要拆分读取
+            k_ptrs = K_ptr + pid_h * stride_kh + start * stride_kn +\
+                        (block_kv * BLOCK_SIZE_N) * stride_kn + \
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kn + \
+                    tl.arange(0, D)[None, :] * stride_kd
+            #手写pointers, k与v仍然是(BLOCK_N,D)的形状
+            v_ptrs = V_ptr + pid_h * stride_vh + start * stride_vn +\
+                        (block_kv * BLOCK_SIZE_N) * stride_vn + \
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vn + \
+                    tl.arange(0, D)[None, :] * stride_vd
+            
+            mask = (block_kv * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N))[:,None] < len_sample
+
+            k = tl.load(k_ptrs, mask=mask, other=0)
+            v = tl.load(v_ptrs, mask=mask, other=0)
 
         for block_q in range(n_blocks):  #load Q_j
             q_ptrs = tl.make_block_ptr(
