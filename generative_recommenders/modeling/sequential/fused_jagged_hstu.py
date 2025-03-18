@@ -180,10 +180,10 @@ def fused_jagged_hstu(q, k, v, rab, attn_mask, head, dim, n, x_offsets):  #n为�
 
     grid = (head, B)
 
-    start_event = torch.cuda.Event(enable_timing=True)
-    end_event = torch.cuda.Event(enable_timing=True)
-    # 记录开始时间
-    start_event.record()
+    # start_event = torch.cuda.Event(enable_timing=True)
+    # end_event = torch.cuda.Event(enable_timing=True)
+    # # 记录开始时间
+    # start_event.record()
 
     fused_jagged_hstu_kernel[grid]( 
         q, k, v, rab,
@@ -199,9 +199,9 @@ def fused_jagged_hstu(q, k, v, rab, attn_mask, head, dim, n, x_offsets):  #n为�
         output.stride(0), output.stride(1), output.stride(2)
     )
     # 记录结束时间
-    end_event.record()
-    torch.cuda.synchronize()
-    print("Triton Time: {}ms ".format(start_event.elapsed_time(end_event)))
+    # end_event.record()
+    # torch.cuda.synchronize()
+    # print("Triton Time: {}ms ".format(start_event.elapsed_time(end_event)))
 
     return output
     
