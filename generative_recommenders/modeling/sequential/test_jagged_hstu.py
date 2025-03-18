@@ -5,21 +5,20 @@ from fused_jagged_hstu import fused_jagged_hstu
 import random
 import fbgemm_gpu
 
-interval = [256]
+interval = [256,510,1020]
 n = max(interval)
-B = 2
+B = 20
 x_offsets = [0]
 for i in range(1, B+1):
     x_offsets.append(x_offsets[-1] + random.choice(interval))
 x_offsets = torch.tensor(x_offsets, device="cuda")
 
-head, d = 1, 32
+head, d = 2, 32
 sum_N = x_offsets[-1]
 q = torch.randn(sum_N, head*d, device="cuda")
 k = torch.randn(sum_N, head*d, device="cuda")
 v = torch.randn(sum_N, head*d, device="cuda")
 rab = torch.randn(B, 1, n, n, device="cuda")
-rab = rab * 10
 
 # 生成一个下三角矩阵
 attn_mask = torch.tril(torch.ones((n, n), device='cuda:0'))
@@ -45,8 +44,8 @@ qk_attn = torch.einsum(
         padded_q.view(B, n, head, d),
         padded_k.view(B, n, head, d),
     )
-qk_attn = qk_attn + rab
-#qk_attn = F.silu(qk_attn) / n #SiLU之后局部归一化
+#qk_attn = qk_attn + rab
+qk_attn = F.silu(qk_attn) / n #SiLU之后局部归一化
 attn_output = torch.einsum(
             "bhnm,bmhd->bnhd",
             qk_attn,
@@ -77,8 +76,8 @@ qk_attn = torch.einsum(
         padded_q.view(B, n, head, d),
         padded_k.view(B, n, head, d),
     )
-qk_attn += rab
-#qk_attn = F.silu(qk_attn) / n #SiLU之后局部归一化
+#qk_attn += rab
+qk_attn = F.silu(qk_attn) / n #SiLU之后局部归一化
 attn_output = torch.einsum(
             "bhnm,bmhd->bnhd",
             qk_attn,
@@ -102,5 +101,5 @@ print("output shape: ", output.shape)
 print("avg diff: ", torch.mean(torch.abs(attn_output - output)))
 print("max diff: ", torch.max(torch.abs(attn_output - output)))
 print("min diff: ", torch.min(torch.abs(attn_output - output)))
-print(torch.abs(attn_output - output)[1,:,:,:])
+#print(torch.abs(attn_output - output)[1,:,:,:])
 

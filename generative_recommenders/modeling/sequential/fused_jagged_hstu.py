@@ -1,6 +1,7 @@
 # 输入Q与K (Sum_N, head*dqk)
 # x_offsets = [0, len1, len1+len2, len1+len2+len3, ...]
-
+# 如果使用triton 3.2.0， 需要在环境/lib/python3.10/site-packages/torch/_inductor/triton_heuristics.py
+# 修改 from torch._C import _cuda_getCurrentRawStream as get_cuda_stream
 import torch
 import triton
 import triton.language as tl
@@ -50,7 +51,7 @@ def fused_jagged_hstu_kernel(
                 base=K_ptr + pid_h * stride_kh + start * stride_kn,  # 当前sequence的起始位置
                 shape = (len_sample.to(tl.int32), D),   #在triton 2.2.0中，必须加入to(tl.int32)；在triton 3.2.0中，不需要
                 strides = (stride_kn, stride_kd),
-                offsets = (block_kv * BLOCK_SIZE_N, 0),  #在triton 2.2.0 中，offsets必须是int64; triton 3.2.0中，offsets是int32
+                offsets = ((block_kv * BLOCK_SIZE_N).to(tl.int32), 0),  #在triton 2.2.0 中，offsets必须是int64; triton 3.2.0中，offsets是int32
                 block_shape = (BLOCK_SIZE_N, D),
                 order = (0, 1)
             )
@@ -59,7 +60,7 @@ def fused_jagged_hstu_kernel(
                 base=V_ptr + pid_h * stride_vh + start * stride_vn,
                 shape = (len_sample.to(tl.int32), D),
                 strides = (stride_vn, stride_vd),
-                offsets = ((block_kv * BLOCK_SIZE_N).to(tl.int64), 0),
+                offsets = ((block_kv * BLOCK_SIZE_N).to(tl.int32), 0),
                 block_shape = (BLOCK_SIZE_N, D),
                 order = (0, 1)
             )
@@ -87,7 +88,7 @@ def fused_jagged_hstu_kernel(
                 base = rab_ptr + pid_b * stride_rab_b,
                 shape = (N, N),
                 strides = (stride_rab_n, stride_rab_m),
-                offsets = (block_q * BLOCK_SIZE_N, block_kv * BLOCK_SIZE_N),
+                offsets = ((block_q * BLOCK_SIZE_N).to(tl.int32), (block_kv * BLOCK_SIZE_N).to(tl.int32)),
                 block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
                 order = (0, 1)
             )
@@ -97,7 +98,7 @@ def fused_jagged_hstu_kernel(
                     base=Q_ptr + pid_h * stride_qh + start * stride_qn, # 当前sequence的Q起始位置
                     shape = (len_sample.to(tl.int32), D),
                     strides = (stride_qn, stride_qd),
-                    offsets = ((block_q * BLOCK_SIZE_N), 0),
+                    offsets = ((block_q * BLOCK_SIZE_N).to(tl.int32), 0),
                     block_shape = (BLOCK_SIZE_N, D),
                     order = (0, 1)
                 )
@@ -105,14 +106,13 @@ def fused_jagged_hstu_kernel(
                     base = Out_ptr + pid_b*stride_out_b + pid_h*stride_out_h,
                     shape = (N,D),
                     strides = (stride_out_n, stride_out_d),
-                    offsets = ((block_q * BLOCK_SIZE_N), 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
+                    offsets = ((block_q * BLOCK_SIZE_N).to(tl.int32), 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
                     block_shape = (BLOCK_SIZE_N, D),
                     order = (0, 1)
                 )
                 q = tl.load(q_block_ptrs)
                 o = tl.load(o_block_ptrs)
-                qk = tl.dot(q, k.T)
-                qk += rab
+                qk = silu(tl.dot(q, k.T, input_precision = "ieee") )/N
                 
                 attn = tl.dot(qk, v)
                 o += attn
@@ -132,9 +132,7 @@ def fused_jagged_hstu_kernel(
                 
                 #q = tl.load(q_ptrs)
                 o = tl.load(o_ptrs, mask=mask, other=0)
-                # qk = (tl.dot(q, k.T) + rab)
-                qk = tl.dot(q, k.T)
-                qk += rab
+                qk = silu(tl.dot(q, k.T, input_precision = "ieee") )/N
                 attn = tl.dot(qk, v)
                 o += attn
                 tl.store(o_ptrs, o, mask=mask)
