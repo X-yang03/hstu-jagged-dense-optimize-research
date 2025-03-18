@@ -68,6 +68,7 @@ def fused_jagged_hstu_kernel(
             k = tl.load(k_block_ptrs)
             v = tl.load(v_block_ptrs)
         else:  # 当前block的长度大于BLOCK_SIZE_N，需要拆分读取
+            #tl.device_print("jagged")
             k_ptrs = K_ptr + pid_h * stride_kh + start * stride_kn +\
                         (block_kv * BLOCK_SIZE_N) * stride_kn + \
                     tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kn + \
@@ -112,12 +113,13 @@ def fused_jagged_hstu_kernel(
                 )
                 q = tl.load(q_block_ptrs)
                 o = tl.load(o_block_ptrs)
-                qk = silu(tl.dot(q, k.T, input_precision = "ieee") )/N
+                qk = silu(tl.dot(q, k.T, input_precision = "ieee") + rab) / N
                 
-                attn = tl.dot(qk, v)
+                attn = tl.dot(qk, v, input_precision = "ieee")
                 o += attn
                 tl.store(o_block_ptrs, o)
             else:
+                tl.device_print("jagged")
                 q_ptrs = Q_ptr + pid_h * stride_qh + start * stride_qn +\
                         (block_q * BLOCK_SIZE_N) * stride_qn + \
                     tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_qn + \
@@ -132,14 +134,16 @@ def fused_jagged_hstu_kernel(
                 
                 #q = tl.load(q_ptrs)
                 o = tl.load(o_ptrs, mask=mask, other=0)
-                qk = silu(tl.dot(q, k.T, input_precision = "ieee") )/N
-                attn = tl.dot(qk, v)
+                qk = silu(tl.dot(q, k.T, input_precision = "ieee") + rab ) / N
+                attn = tl.dot(qk, v, input_precision = "ieee")
                 o += attn
                 tl.store(o_ptrs, o, mask=mask)
 
 
 def fused_jagged_hstu(q, k, v, rab, attn_mask, head, dim, n, x_offsets):  #n为最长序列长度
     # q k v shape: (sum_N, head*d)
+    # rab shape: (B, 1, n, n)
+    # attn_mask shape: (1, 1, n, n)
     sum_N, _ = q.shape
     q = q.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
     k = k.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
