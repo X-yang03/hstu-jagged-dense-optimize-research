@@ -1,0 +1,104 @@
+# 输入Q与K (Sum_N, head*dqk)
+# x_offsets = [0, len1, len1+len2, len1+len2+len3, ...]
+
+import torch
+import triton
+import triton.language as tl
+
+@triton.jit
+def fused_jagged_hstu_kernel(
+    Q_ptr, K_ptr, V_ptr,
+    Out_ptr,
+    B, H, N, D :tl.constexpr,  # B: batch size, H: head, N: sequence length, D: hidden size
+    stride_kh, stride_kn, stride_kd,
+    stride_qh, stride_qn, stride_qd,
+    stride_vh, stride_vn, stride_vd,
+    stride_out_b, stride_out_h, stride_out_n, stride_out_d,
+    BLOCK_SIZE_N: tl.constexpr,
+    x_offsets_ptr
+):
+    pid_h = tl.program_id(0)
+    pid_b = tl.program_id(1)
+
+    start = tl.load(x_offsets_ptr + pid_b)
+    end = tl.load(x_offsets_ptr + pid_b + 1)
+    len_sample = end - start
+
+    n_blocks = tl.cdiv(len_sample, BLOCK_SIZE_N)
+
+    for block_kv in range(n_blocks):  #load  K_i V_i
+        k_ptrs = tl.make_block_ptr(
+            base=K_ptr + pid_h * stride_kh + start * stride_kn,  # 当前sequence的起始位置
+            shape = (len_sample, D),
+            strides = (stride_kn, stride_kd),
+            offsets = ((block_kv * BLOCK_SIZE_N).to(tl.int32), 0),
+            block_shape = (BLOCK_SIZE_N, D),
+            order = (0, 1)
+        )
+
+        v_ptrs = tl.make_block_ptr(
+            base=V_ptr + pid_h * stride_vh + start * stride_vn,
+            shape = (len_sample, D),
+            strides = (stride_vn, stride_vd),
+            offsets = ((block_kv * BLOCK_SIZE_N).to(tl.int32), 0),
+            block_shape = (BLOCK_SIZE_N, D),
+            order = (0, 1)
+        )
+
+        k = tl.load(k_ptrs)
+        v = tl.load(v_ptrs)
+
+        for block_q in range(n_blocks):  #load Q_j
+            q_ptrs = tl.make_block_ptr(
+                base=Q_ptr + pid_h * stride_qh + start * stride_qn, # 当前sequence的Q起始位置
+                shape = (len_sample, D),
+                strides = (stride_qn, stride_qd),
+                offsets = ((block_q * BLOCK_SIZE_N).to(tl.int32), 0),
+                block_shape = (BLOCK_SIZE_N, D),
+                order = (0, 1)
+            )
+
+            o_ptrs = tl.make_block_ptr(
+                    base = Out_ptr + pid_b*stride_out_b + pid_h*stride_out_h,
+                    shape = (N,D),
+                    strides = (stride_out_n, stride_out_d),
+                    offsets = ((block_q * BLOCK_SIZE_N).to(tl.int32), 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
+                    block_shape = (BLOCK_SIZE_N, D),
+                    order = (0, 1)
+            )
+            
+            q = tl.load(q_ptrs)
+            o = tl.load(o_ptrs)
+            qk = tl.dot(q, k.T, input_precision="ieee")
+            attn = tl.dot(qk, v, input_precision="ieee")
+            o += attn
+            tl.store(o_ptrs, o)
+
+
+def fused_jagged_hstu(q, k, v, head, dim, n, x_offsets):  #n为最长序列长度
+    # q k v shape: (sum_N, head*d)
+    sum_N, _ = q.shape
+    q = q.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
+    k = k.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
+    v = v.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d
+
+    B = len(x_offsets) - 1
+    output = torch.zeros(B, head, n, dim, device=q.device, dtype=q.dtype)
+
+    grid = (head, B)
+
+    BLOCK_SIZE_N = 32
+    fused_jagged_hstu_kernel[grid]( 
+        q, k, v,
+        output,
+        B, head, n, dim,
+        k.stride(0), k.stride(1), k.stride(2),
+        q.stride(0), q.stride(1), q.stride(2),
+        v.stride(0), v.stride(1), v.stride(2),
+        output.stride(0), output.stride(1), output.stride(2), output.stride(3),
+        BLOCK_SIZE_N,
+        x_offsets
+    )
+
+    return output
+    
