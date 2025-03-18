@@ -20,13 +20,15 @@ def silu(x):
 
 @triton.jit
 def fused_jagged_hstu_kernel(
-    Q_ptr, K_ptr, V_ptr,
+    Q_ptr, K_ptr, V_ptr, rab_ptr,
     Out_ptr,
+    attn_mask_ptr,
     x_offsets_ptr,
     B, H, N, D :tl.constexpr,  # B: batch size, H: head, N: sequence length, D: hidden size
     stride_kh, stride_kn, stride_kd,
     stride_qh, stride_qn, stride_qd,
     stride_vh, stride_vn, stride_vd,
+    stride_rab_b, stride_rab_h, stride_rab_n, stride_rab_m,
     stride_out_b, stride_out_h, stride_out_n, stride_out_d,
     BLOCK_SIZE_N: tl.constexpr
     
@@ -81,6 +83,15 @@ def fused_jagged_hstu_kernel(
             v = tl.load(v_ptrs, mask=mask, other=0)
 
         for block_q in range(n_blocks):  #load Q_j
+            rab_ptrs = tl.make_block_ptr(  # rab shape : (B,1,N,N)
+                base = rab_ptr + pid_b * stride_rab_b,
+                shape = (N, N),
+                strides = (stride_rab_n, stride_rab_m),
+                offsets = (block_q * BLOCK_SIZE_N, block_kv * BLOCK_SIZE_N),
+                block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
+                order = (0, 1)
+            )
+            rab = tl.load(rab_ptrs)
             if block_q * BLOCK_SIZE_N + BLOCK_SIZE_N <= len_sample:
                 q_block_ptrs = tl.make_block_ptr(
                     base=Q_ptr + pid_h * stride_qh + start * stride_qn, # 当前sequence的Q起始位置
@@ -100,7 +111,8 @@ def fused_jagged_hstu_kernel(
                 )
                 q = tl.load(q_block_ptrs)
                 o = tl.load(o_block_ptrs)
-                qk = silu(tl.dot(q, k.T))/N
+                qk = tl.dot(q, k.T)
+                qk += rab
                 
                 attn = tl.dot(qk, v)
                 o += attn
@@ -120,13 +132,15 @@ def fused_jagged_hstu_kernel(
                 
                 #q = tl.load(q_ptrs)
                 o = tl.load(o_ptrs, mask=mask, other=0)
-                qk = silu(tl.dot(q, k.T))/N
+                # qk = (tl.dot(q, k.T) + rab)
+                qk = tl.dot(q, k.T)
+                qk += rab
                 attn = tl.dot(qk, v)
                 o += attn
                 tl.store(o_ptrs, o, mask=mask)
 
 
-def fused_jagged_hstu(q, k, v, head, dim, n, x_offsets):  #n为最长序列长度
+def fused_jagged_hstu(q, k, v, rab, attn_mask, head, dim, n, x_offsets):  #n为最长序列长度
     # q k v shape: (sum_N, head*d)
     sum_N, _ = q.shape
     q = q.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
@@ -144,13 +158,15 @@ def fused_jagged_hstu(q, k, v, head, dim, n, x_offsets):  #n为最长序列长�
     start_event.record()
 
     fused_jagged_hstu_kernel[grid]( 
-        q, k, v,
+        q, k, v, rab,
         output,
+        attn_mask,
         x_offsets,
         B, head, n, dim,
         k.stride(0), k.stride(1), k.stride(2),
         q.stride(0), q.stride(1), q.stride(2),
         v.stride(0), v.stride(1), v.stride(2),
+        rab.stride(0), rab.stride(1), rab.stride(2), rab.stride(3),
         output.stride(0), output.stride(1), output.stride(2), output.stride(3),
     )
     # 记录结束时间
