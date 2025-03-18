@@ -30,6 +30,7 @@ def fused_jagged_hstu_kernel(
     stride_qh, stride_qn, stride_qd,
     stride_vh, stride_vn, stride_vd,
     stride_rab_b, stride_rab_h, stride_rab_n, stride_rab_m,
+    stride_mask_n, stride_mask_m,
     stride_out_b, stride_out_h, stride_out_n, stride_out_d,
     BLOCK_SIZE_N: tl.constexpr
     
@@ -84,7 +85,7 @@ def fused_jagged_hstu_kernel(
             k = tl.load(k_ptrs, mask=mask, other=0)
             v = tl.load(v_ptrs, mask=mask, other=0)
 
-        for block_q in range(n_blocks):  #load Q_j
+        for block_q in range(block_kv, n_blocks):  #load Q_j, 要求 block_q >= block_kv
             rab_ptrs = tl.make_block_ptr(  # rab shape : (B,1,N,N)
                 base = rab_ptr + pid_b * stride_rab_b,
                 shape = (N, N),
@@ -115,6 +116,18 @@ def fused_jagged_hstu_kernel(
                 o = tl.load(o_block_ptrs)
                 qk = silu(tl.dot(q, k.T, input_precision = "ieee") + rab) / N
                 
+                if block_kv == block_q:
+                    mask_ptrs = tl.make_block_ptr(
+                        base = attn_mask_ptr,
+                        shape = (N, N),
+                        strides = (stride_mask_n, stride_mask_m),
+                        offsets = ((block_q * BLOCK_SIZE_N).to(tl.int32), (block_kv * BLOCK_SIZE_N).to(tl.int32)),
+                        block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
+                        order = (0, 1)
+                    )
+                    attn_mask = tl.load(mask_ptrs)
+                    qk = qk * attn_mask
+
                 attn = tl.dot(qk, v, input_precision = "ieee")
                 o += attn
                 tl.store(o_block_ptrs, o)
@@ -135,6 +148,18 @@ def fused_jagged_hstu_kernel(
                 #q = tl.load(q_ptrs)
                 o = tl.load(o_ptrs, mask=mask, other=0)
                 qk = silu(tl.dot(q, k.T, input_precision = "ieee") + rab ) / N
+                if block_kv == block_q:
+                    mask_ptrs = tl.make_block_ptr(
+                        base = attn_mask_ptr,
+                        shape = (N, N),
+                        strides = (stride_mask_n, stride_mask_m),
+                        offsets = ((block_q * BLOCK_SIZE_N).to(tl.int32), (block_kv * BLOCK_SIZE_N).to(tl.int32)),
+                        block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
+                        order = (0, 1)
+                    )
+                    attn_mask = tl.load(mask_ptrs)
+                    qk = qk * attn_mask
+                
                 attn = tl.dot(qk, v, input_precision = "ieee")
                 o += attn
                 tl.store(o_ptrs, o, mask=mask)
@@ -169,6 +194,7 @@ def fused_jagged_hstu(q, k, v, rab, attn_mask, head, dim, n, x_offsets):  #n为�
         q.stride(0), q.stride(1), q.stride(2),
         v.stride(0), v.stride(1), v.stride(2),
         rab.stride(0), rab.stride(1), rab.stride(2), rab.stride(3),
+        attn_mask.stride(2), attn_mask.stride(3),
         output.stride(0), output.stride(1), output.stride(2), output.stride(3),
     )
     # 记录结束时间
