@@ -83,7 +83,6 @@ def hstu_fused_attention_kernel_rab(
             #加载output的块  O_j
             o = tl.load(o_ptrs)
             #计算Q_j * K_i, 得到QK_ji, (BLOCK_N, BLOCK_N)
-            qk = silu(tl.dot(q, k.T,input_precision = "ieee"))/N
 
             rab_ptrs = tl.make_block_ptr(
                 base = rab_ptr + pid_b*stride_rab_b,
@@ -94,7 +93,7 @@ def hstu_fused_attention_kernel_rab(
                 order = (0, 1)
             )
             rab = tl.load(rab_ptrs)
-            qk += rab
+            qk = silu(tl.dot(q, k.T,input_precision = "ieee") + rab)/N
 
             #经测试，triton的qk与einsum的qk误差在3.45e-11
             attn = tl.dot(qk, v,input_precision = "ieee")

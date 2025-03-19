@@ -4,6 +4,7 @@ from tqdm import tqdm
 from fused_jagged_hstu import fused_jagged_hstu
 import random
 import fbgemm_gpu
+import torch.profiler
 
 def get_input(sum_N, head, d, B, n):
     q = torch.randn(sum_N, head*d, device="cuda")
@@ -45,14 +46,16 @@ def origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets):
     return attn_output
 
 seq_len = [128, 120, 256, 260, 512, 510, 1024, 1020, 100, 200, 300, 400]
-n = max(seq_len)
+n = 0
 B = 20
 x_offsets = [0]
 for i in range(1, B+1):
-    x_offsets.append(x_offsets[-1] + random.choice(seq_len)) # 生成一个长度为B的序列，每个元素为0-1024之间的随机数
+    rand_seq_len = random.choice(seq_len)
+    n = max(n, rand_seq_len)
+    x_offsets.append(x_offsets[-1] + rand_seq_len) # 生成一个长度为B的序列，每个元素为0-1024之间的随机数
 x_offsets = torch.tensor(x_offsets, device="cuda") # 转换为tensor
 
-head, d = 2 , 32
+head, d = 8 , 32
 sum_N = x_offsets[-1]
 
 print('benchmark config: sum_N: {}, head: {}, d: {}, B: {}, n: {}'.format(sum_N, head, d, B, n))
@@ -76,8 +79,16 @@ print('start benchmark')
 einsum_time = []
 fused_time = []
 
-test_num = 100
+test_num = 10
 
+# with torch.profiler.profile(
+#     activities=[
+#         torch.profiler.ProfilerActivity.CPU,
+#         torch.profiler.ProfilerActivity.CUDA],
+#     schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=1),
+#     #on_trace_ready=torch.profiler.tensorboard_trace_handler('./log_dir'),
+#     record_shapes=True,
+# ) as prof:    
 for _ in tqdm(range(test_num)):
     q, k, v, rab, attn_mask = get_input(sum_N, head, d, B, n)
 
@@ -92,11 +103,14 @@ for _ in tqdm(range(test_num)):
 
     start_event.record()
     fused_attn = fused_jagged_hstu(q, k, v, rab, attn_mask, head, d, n, x_offsets).permute(1, 0, 2).contiguous().view(sum_N, head*d)
+    #prof.step()
     end_event.record()
     torch.cuda.synchronize()
     fused_time.append(start_event.elapsed_time(end_event))
 #print("Warp Triton Time: {}ms ".format(start_event.elapsed_time(end_event)))
 #print("diff: ", torch.mean(torch.abs(einsum_attn - fused_attn)))
+
+#prof.export_chrome_trace('trace.json')
 
 acc_ratio = [einsum_time[i] / fused_time[i] for i in range(test_num)]
 print('average einsum time: {}ms'.format(sum(einsum_time) / test_num))

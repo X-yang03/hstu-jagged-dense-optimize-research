@@ -83,12 +83,11 @@ def hstu_fused_attention_kernel_rab(
             q = tl.load(q_ptrs)
             #加载output的块  O_j
             o = tl.load(o_ptrs)
-            #计算Q_j * K_i, 得到QK_ji, (BLOCK_N, BLOCK_N)
-            qk = silu(tl.dot(q, k.T,input_precision = "ieee"))/N
-            #直到此处，qk与einsum得到的qk误差在3.45e-11，可以忽略不记
-
+            
             rab = tl.load(rab_ptrs)
-            qk += rab
+            #计算Q_j * K_i, 得到QK_ji, (BLOCK_N, BLOCK_N)
+            qk = silu(tl.dot(q, k.T,input_precision = "ieee") + rab)/N
+            #直到此处，qk与einsum得到的qk误差在3.45e-11，可以忽略不记
             
             attn = tl.dot(qk, v,input_precision = "ieee")
             o += attn
@@ -211,6 +210,7 @@ def hstu_fused_attention_v1(q, k, v, rab, enable_rab):  #N为padded后的长度�
         )
     end_event.record()
     torch.cuda.synchronize()
-    print("Triton v1 Time : ", start_event.elapsed_time(end_event))
+    print("Triton v1 Time : {}ms ".format(start_event.elapsed_time(end_event)))
+    
     
     return output
