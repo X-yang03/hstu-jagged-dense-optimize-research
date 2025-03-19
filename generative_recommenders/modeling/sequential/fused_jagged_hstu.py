@@ -1,7 +1,11 @@
-# 输入Q与K (Sum_N, head*dqk)
-# x_offsets = [0, len1, len1+len2, len1+len2+len3, ...]
+# 输入Q与K V (Sum_N, head*dqk)
+# 输出 attn(Sum_N, head*d)
+# x_offsets = [0, len1, len1+len2, len1+len2+len3, ..., total_len]
+
 # 如果使用triton 3.2.0， 需要在环境/lib/python3.10/site-packages/torch/_inductor/triton_heuristics.py
 # 修改 from torch._C import _cuda_getCurrentRawStream as get_cuda_stream
+
+# 如果使用triton 2.2.0， block_ptr中shape必需是int32，offsets必需是int64
 import torch
 import triton
 import triton.language as tl
@@ -42,16 +46,16 @@ def fused_jagged_hstu_kernel(
     end = tl.load(x_offsets_ptr + pid_b + 1)
     len_sample = end - start
 
-    n_blocks = tl.cdiv(len_sample, BLOCK_SIZE_N)
+    n_blocks = tl.cdiv(len_sample, BLOCK_SIZE_N)  # 向上取整
 
     for block_kv in range(n_blocks):  #load  K_i V_i
         k = tl.zeros((BLOCK_SIZE_N, D), dtype=tl.float32)
         v = tl.zeros((BLOCK_SIZE_N, D), dtype=tl.float32)
-        if block_kv * BLOCK_SIZE_N + BLOCK_SIZE_N <= len_sample:   # 当前block的长度小于BLOCK_SIZE_N，直接读取
+        if block_kv * BLOCK_SIZE_N + BLOCK_SIZE_N <= len_sample:   # 当前block在当前sequence的长度范围内
             k_block_ptrs = tl.make_block_ptr(
                 base=K_ptr + pid_h * stride_kh + start * stride_kn,  # 当前sequence的起始位置
-                shape = (len_sample.to(tl.int32), D),   #在triton 2.2.0中，必须加入to(tl.int32)；在triton 3.2.0中，不需要
-                strides = (stride_kn, stride_kd),
+                shape = (len_sample, D),   #在triton 2.2.0中，必须加入to(tl.int32)；在triton 3.2.0中，不需要
+                strides = (stride_kn, stride_kd), 
                 offsets = ((block_kv * BLOCK_SIZE_N).to(tl.int32), 0),  #在triton 2.2.0 中，offsets必须是int64; triton 3.2.0中，offsets是int32
                 block_shape = (BLOCK_SIZE_N, D),
                 order = (0, 1)
@@ -68,7 +72,8 @@ def fused_jagged_hstu_kernel(
 
             k = tl.load(k_block_ptrs)
             v = tl.load(v_block_ptrs)
-        else:  # 当前block的长度大于BLOCK_SIZE_N，需要拆分读取
+
+        else:  # 对末尾的尾项进行单独处理，需要拆分读取
             #tl.device_print("jagged")
             k_ptrs = K_ptr + pid_h * stride_kh + start * stride_kn +\
                         (block_kv * BLOCK_SIZE_N) * stride_kn + \
@@ -80,6 +85,7 @@ def fused_jagged_hstu_kernel(
                     tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vn + \
                     tl.arange(0, D)[None, :] * stride_vd
             
+            #需要加入mask，将越界读取的数据置为0
             mask = (block_kv * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N))[:,None] < len_sample
 
             k = tl.load(k_ptrs, mask=mask, other=0)
@@ -95,6 +101,7 @@ def fused_jagged_hstu_kernel(
                 order = (0, 1)
             )
             rab = tl.load(rab_ptrs)
+
             if block_q * BLOCK_SIZE_N + BLOCK_SIZE_N <= len_sample:
                 q_block_ptrs = tl.make_block_ptr(
                     base=Q_ptr + pid_h * stride_qh + start * stride_qn, # 当前sequence的Q起始位置
@@ -116,7 +123,9 @@ def fused_jagged_hstu_kernel(
                 o = tl.load(o_block_ptrs)
                 qk = silu(tl.dot(q, k.T, input_precision = "ieee") + rab) / N
                 
-                if block_kv == block_q:
+                if block_kv == block_q:  #mask的处理方式
+                # 因为mask是下三角的1矩阵，当block_kv < block_q时，不用做任何处理
+                # 当block_kv == block_q时，需要将qk与mask相乘
                     mask_ptrs = tl.make_block_ptr(
                         base = attn_mask_ptr,
                         shape = (N, N),
@@ -180,11 +189,6 @@ def fused_jagged_hstu(q, k, v, rab, attn_mask, head, dim, n, x_offsets):  #n为�
 
     grid = (head, B)
 
-    # start_event = torch.cuda.Event(enable_timing=True)
-    # end_event = torch.cuda.Event(enable_timing=True)
-    # # 记录开始时间
-    # start_event.record()
-
     fused_jagged_hstu_kernel[grid]( 
         q, k, v, rab,
         output,
@@ -198,10 +202,5 @@ def fused_jagged_hstu(q, k, v, rab, attn_mask, head, dim, n, x_offsets):  #n为�
         attn_mask.stride(2), attn_mask.stride(3),
         output.stride(0), output.stride(1), output.stride(2)
     )
-    # 记录结束时间
-    # end_event.record()
-    # torch.cuda.synchronize()
-    # print("Triton Time: {}ms ".format(start_event.elapsed_time(end_event)))
-
     return output
     

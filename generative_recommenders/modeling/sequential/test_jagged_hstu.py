@@ -14,8 +14,10 @@ for i in range(1, B+1):
     x_offsets.append(x_offsets[-1] + random.choice(interval))
 x_offsets = torch.tensor(x_offsets, device="cuda")
 
-head, d = 2 , 32
+head, d = 8 , 64
 sum_N = x_offsets[-1]
+
+print('benchmark config: sum_N: {}, head: {}, d: {}, B: {}, n: {}'.format(sum_N, head, d, B, n))
 q = torch.randn(sum_N, head*d, device="cuda")
 k = torch.randn(sum_N, head*d, device="cuda")
 v = torch.randn(sum_N, head*d, device="cuda")
@@ -102,7 +104,12 @@ print("einsum Time: {}ms ".format(start_event.elapsed_time(end_event)))
 print("attn_output shape: ", attn_output.shape)
 print(attn_output[0, 10])
 output = fused_jagged_hstu(q, k, v, rab, attn_mask, head, d, n, x_offsets).permute(1, 0, 2).contiguous().view(sum_N, head*d)
+
+start_event.record()
 output1 = fused_jagged_hstu(q, k, v, rab, attn_mask, head, d, n, x_offsets).permute(1, 0, 2).contiguous().view(sum_N, head*d)
+end_event.record()
+torch.cuda.synchronize()
+print("Triton Time: {}ms ".format(start_event.elapsed_time(end_event)))
 print("output shape: ", output.shape)
 print(output[0, 10])
 
