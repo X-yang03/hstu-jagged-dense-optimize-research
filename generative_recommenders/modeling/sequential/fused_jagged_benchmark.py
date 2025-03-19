@@ -56,7 +56,8 @@ for i in range(1, B+1):
 x_offsets = torch.tensor(x_offsets, device="cuda") # 转换为tensor
 
 head, d = 8 , 32
-sum_N = x_offsets[-1]
+sum_N = int(x_offsets[-1]) #如果sum_N是gpu tensor，会导致后续的view操作有额外的gpu-cpu拷贝开销
+#print(type(sum_N), sum_N.device)
 
 print('benchmark config: sum_N: {}, head: {}, d: {}, B: {}, n: {}'.format(sum_N, head, d, B, n))
 print('input q k v & output shape: ({}, {})'.format(sum_N, head*d))
@@ -81,36 +82,38 @@ fused_time = []
 
 test_num = 10
 
-# with torch.profiler.profile(
-#     activities=[
-#         torch.profiler.ProfilerActivity.CPU,
-#         torch.profiler.ProfilerActivity.CUDA],
-#     schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=1),
-#     #on_trace_ready=torch.profiler.tensorboard_trace_handler('./log_dir'),
-#     record_shapes=True,
-# ) as prof:    
-for _ in tqdm(range(test_num)):
-    q, k, v, rab, attn_mask = get_input(sum_N, head, d, B, n)
+with torch.profiler.profile(
+    activities=[
+        torch.profiler.ProfilerActivity.CPU,
+        torch.profiler.ProfilerActivity.CUDA],
+    schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=1),
+    #on_trace_ready=torch.profiler.tensorboard_trace_handler('./log_dir'),
+    record_shapes=True,
+) as prof:    
+    for _ in tqdm(range(test_num)):
+        q, k, v, rab, attn_mask = get_input(sum_N, head, d, B, n)
 
-    start_event = torch.cuda.Event(enable_timing=True)
-    end_event = torch.cuda.Event(enable_timing=True)
-    start_event.record()
-    einsum_attn = origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
-    end_event.record()
-    torch.cuda.synchronize()
-    einsum_time.append(start_event.elapsed_time(end_event))
-    #print("einsum Time: {}ms ".format(start_event.elapsed_time(end_event)))
+        start_event = torch.cuda.Event(enable_timing=True)
+        end_event = torch.cuda.Event(enable_timing=True)
+        start_event.record()
+        einsum_attn = origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
+        end_event.record()
+        torch.cuda.synchronize()
+        einsum_time.append(start_event.elapsed_time(end_event))
+        #print("einsum Time: {}ms ".format(start_event.elapsed_time(end_event)))
 
-    start_event.record()
-    fused_attn = fused_jagged_hstu(q, k, v, rab, attn_mask, head, d, n, x_offsets).permute(1, 0, 2).contiguous().view(sum_N, head*d)
-    #prof.step()
-    end_event.record()
-    torch.cuda.synchronize()
-    fused_time.append(start_event.elapsed_time(end_event))
-#print("Warp Triton Time: {}ms ".format(start_event.elapsed_time(end_event)))
+        start_event.record()
+        fused_attn = fused_jagged_hstu(q, k, v, rab, attn_mask, head, d, n, x_offsets).permute(1, 0, 2).contiguous().view(sum_N, head*d)
+        #经过prof，.view操作会带来aten::item的额外开销，并且开销较大
+        end_event.record()
+        torch.cuda.synchronize()
+        #prof.step()
+        fused_time.append(start_event.elapsed_time(end_event))
 #print("diff: ", torch.mean(torch.abs(einsum_attn - fused_attn)))
 
 #prof.export_chrome_trace('trace.json')
+print(einsum_time)
+print(fused_time)
 
 acc_ratio = [einsum_time[i] / fused_time[i] for i in range(test_num)]
 print('average einsum time: {}ms'.format(sum(einsum_time) / test_num))
