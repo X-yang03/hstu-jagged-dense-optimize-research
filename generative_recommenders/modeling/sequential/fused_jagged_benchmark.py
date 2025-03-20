@@ -104,14 +104,14 @@ with torch.profiler.profile(
 
         start_event.record()
         fused_attn = fused_jagged_hstu(q, k, v, rab, attn_mask, head, d, n, x_offsets).permute(1, 0, 2).contiguous().view(sum_N, head*d)
-        #经过prof，.view操作会带来aten::item的额外开销，并且开销较大
+        #经过prof，.view操作会带来aten::item的额外开销，并且开销较大  (已解决，需保证sum_N是cpu tensor)
         end_event.record()
         torch.cuda.synchronize()
         #prof.step()
         fused_time.append(start_event.elapsed_time(end_event))
 #print("diff: ", torch.mean(torch.abs(einsum_attn - fused_attn)))
 
-#prof.export_chrome_trace('trace.json')
+#prof.export_chrome_trace('trace_gpu.json')
 print(einsum_time)
 print(fused_time)
 
