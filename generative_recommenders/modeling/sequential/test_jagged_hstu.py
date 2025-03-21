@@ -52,7 +52,7 @@ for i in range(1, B+1):
     x_offsets.append(x_offsets[-1] + random.choice(interval))
 x_offsets = torch.tensor(x_offsets, device="cuda")
 
-head, d = 8 , 64
+head, d = 8 , 32
 sum_N = x_offsets[-1]
 
 q, k, v, rab, attn_mask = get_input(sum_N, head, d, B, n)
