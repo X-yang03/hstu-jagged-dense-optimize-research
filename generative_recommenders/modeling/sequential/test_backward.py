@@ -85,11 +85,7 @@ class CustomAttentionFunction(torch.autograd.Function):
         attn_mask: 注意力掩码，形状 (B, n, n)
         n: 填充后的序列长度
         """
-        # B = len(x_offsets) - 1  # batch size
-        # head = q.shape[1] // (k.shape[-1] // n)  # 推导头数（假设 d 相同）
-        # d = k.shape[-1] // head
 
-        # Step 1: 稀疏转稠密（q, k）
         padded_q = torch.ops.fbgemm.jagged_to_padded_dense(
             q, [x_offsets], [n], padding_value=0.0
         ).view(B, n, head, d)  # (B, n, h, d)
@@ -155,7 +151,7 @@ class CustomAttentionFunction(torch.autograd.Function):
         grad_attn_output = torch.ops.fbgemm.jagged_to_padded_dense(
             grad_output, [x_offsets], [n], padding_value=0.0
         ).view(B, n, head, d)  # (B, n, h, d)
-        #print(grad_attn_output.shape)
+
         # ---------------------------------------------------------------
         # 反向步骤 2: einsum("bhnm,bmhd->bnhd") 的梯度
         # 计算对 masked_qk 和 padded_v 的梯度
@@ -211,62 +207,25 @@ class CustomAttentionFunction(torch.autograd.Function):
         # ---------------------------------------------------------------
         # 反向步骤 6: jagged_to_padded_dense 的梯度（q, k, v）
         # 将稠密梯度转换回稀疏格式
-        def dense_to_sparse_grad(grad_padded, original_tensor):
-            # 将梯度从 (B, n, ...) 转换回原始稀疏形状
-            grad_flat = grad_padded.view(B * n, -1)
-            lengths = x_offsets[1:] - x_offsets[:-1]  # 每个样本的实际长度
-            grad_sparse = torch.ops.fbgemm.dense_to_jagged(
-                grad_flat, [x_offsets]
-            )[0]
-            return grad_sparse.contiguous()
-
-        # grad_q = dense_to_sparse_grad(grad_padded_q, q)
-        # grad_k = dense_to_sparse_grad(grad_padded_k, k)
-        # grad_v = dense_to_sparse_grad(grad_padded_v, v)
-
-        # ---------------------------------------------------------------
-        # 注意：attn_mask 的梯度通常不需要（如果是固定掩码）
         grad_attn_mask = None
 
         # 返回梯度顺序需与 forward 的输入参数一致
         return grad_q, grad_k, grad_v, None, None, None, None, None, None, None
 
 # 使用示例
-# B = 2
-# seq_len = [12, 13, 10]
-# n = 0
-# head = 4
-# d = 16
-# #sum_N = 25  # 稀疏序列总长度
 
-# x_offsets = [0]
-# for i in range(1, B+1):
-#     rand_seq_len = random.choice(seq_len)
-#     n = max(n, rand_seq_len)
-#     x_offsets.append(x_offsets[-1] + rand_seq_len) # 生成一个长度为B的序列，每个元素为0-1024之间的随机数
-# x_offsets = torch.tensor(x_offsets, device="cuda") # 转换为tensor
-# sum_N = int(x_offsets[-1])
-# #x_offsets = torch.tensor([0, 12, 25], dtype=torch.int32, device="cuda")  # B=2
-# rab = torch.randn(B, head, n, n, requires_grad=True, device="cuda")
-# #attn_mask = torch.randn(B, n, n, device="cuda") > 0  # 布尔掩码
-# attn_mask = torch.tril(torch.ones((n, n), device='cuda:0'))
-#     # 调整形状为 (1, 1, n, n)
-# attn_mask = attn_mask.view(1, 1, n, n) 
-
-# # 模拟输入
-# q = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
-# k = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
-# v = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
-interval = [256, 510, 1020]
-n = max(interval)
+seq_len = [128, 120, 256, 260, 512, 510, 1024, 1020, 100, 200, 300, 400]
+n = 0
 B = 20
 x_offsets = [0]
 for i in range(1, B+1):
-    x_offsets.append(x_offsets[-1] + random.choice(interval))
-x_offsets = torch.tensor(x_offsets, device="cuda")
+    rand_seq_len = random.choice(seq_len)
+    n = max(n, rand_seq_len)
+    x_offsets.append(x_offsets[-1] + rand_seq_len) # 生成一个长度为B的序列，每个元素为0-1024之间的随机数
+x_offsets = torch.tensor(x_offsets, device="cuda") # 转换为tensor
 
 head, d = 8 , 32
-sum_N = x_offsets[-1]
+sum_N = int(x_offsets[-1])
 
 q, k, v, rab, attn_mask = get_input(sum_N, head, d, B, n)
 
@@ -278,7 +237,7 @@ v1 = v.clone().detach().requires_grad_(True)
 output = CustomAttentionFunction.apply(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
 loss = output.sum()
 loss.backward()
-print(q.grad[0, :])
+#print(q.grad[0, :])
 
 output1 = origin_einsum_attn(q1, k1, v1, rab, attn_mask, B, n, head, d, x_offsets)
 
@@ -289,7 +248,7 @@ loss1.backward()
 print('diff between two q backward: ', (q.grad - q1.grad).abs().mean(), (q.grad - q1.grad).abs().max())
 print('diff between two k backward: ', (k.grad - k1.grad).abs().mean(), (k.grad - k1.grad).abs().max())
 print('diff between two v backward: ', (v.grad - v1.grad).abs().mean(), (v.grad - v1.grad).abs().max())
-print(q1.grad[0, :])
+#print(q1.grad[0, :])
 # 验证梯度存在
 print(q.grad.shape)  # torch.Size([25, 64])
 print(k.grad.shape)  # torch.Size([25, 64])
