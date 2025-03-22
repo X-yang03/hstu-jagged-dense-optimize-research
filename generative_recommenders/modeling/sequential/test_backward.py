@@ -44,36 +44,6 @@ def origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets):
         )[0]
     return attn_output
 
-
-def attn_forward(q, k, v, rab, attn_mask, B, n, head, d, x_offsets):
-    padded_q = torch.ops.fbgemm.jagged_to_padded_dense(  #根据x_offsets的位置信息，将q和k转换为padded形式，统一为长为n的序列， [B, n, num_heads*dqk]
-            values=q, offsets=[x_offsets], max_lengths=[n], padding_value=0.0
-        )
-    padded_k = torch.ops.fbgemm.jagged_to_padded_dense(
-            values=k, offsets=[x_offsets], max_lengths=[n], padding_value=0.0
-        )
-
-    qk_attn = torch.einsum(
-            "bnhd,bmhd->bhnm",  #在attention_dim维度上计算q和k的点积  ,attn形状(B,num_heads,n,n)
-            padded_q.view(B, n, head, d),
-            padded_k.view(B, n, head, d),
-        )           
-    qk_attn = qk_attn + rab
-    qk_attn = F.silu(qk_attn) / n #SiLU之后局部归一化
-    qk_attn = qk_attn * attn_mask
-    attn_output = torch.ops.fbgemm.dense_to_jagged( #Φ(qk)v  , dense_to_jagged将输出转换为(sum_N, head*d)形状
-            torch.einsum(
-                "bhnm,bmhd->bnhd",
-                qk_attn,
-                torch.ops.fbgemm.jagged_to_padded_dense(v, [x_offsets], [n]).reshape(
-                    B, n, head, d  #将v转换为padded形式
-                ),
-            ).reshape(B, n, head * d), 
-            [x_offsets],
-        )[0]
-    return attn_output
-
-
 class CustomAttentionFunction(torch.autograd.Function):
     @staticmethod
     def forward(ctx, q, k, v, rab, attn_mask, B, n, head, d, x_offsets):
@@ -161,9 +131,9 @@ class CustomAttentionFunction(torch.autograd.Function):
         grad_padded_v = torch.einsum("bhnm,bnhd->bmhd", masked_qk, grad_attn_output)
         #到这一步都没问题
 
-
-        # print(grad_masked_qk.shape)
-        # print(grad_padded_v.shape)
+        #Triton 实现 tip1 : 需要用到masked_qk, 可以考虑保存中间结果，或直接用
+        #Q 和 K 的 块再算一遍 ? 或许保存的效率更高，因为qk需要用到rab和mask
+        
         # ---------------------------------------------------------------
         # 反向步骤 3: 掩码 + 归一化 + SiLU 的梯度
         # 公式: grad_normalized = grad_masked_qk * attn_mask.unsqueeze(1)
@@ -171,9 +141,11 @@ class CustomAttentionFunction(torch.autograd.Function):
         #       grad_qk_attn = grad_silu * silu_derivative(qk_attn + rab)
         
         # 计算 SiLU 的导数: silu_grad = sigmoid(x) * (1 + x * (1 - sigmoid(x)))
-        x = qk_attn  # qk_attn + rab? or qk_attn * n ?  
-        sigmoid_x = torch.sigmoid(x)
-        silu_derivative = sigmoid_x * (1 + x * (1 - sigmoid_x))
+        #x = qk_attn  # qk_attn + rab? or qk_attn * n ? 
+
+        # Triton实现 tip2： 这一块主要由qk块计算得到 
+        sigmoid_x = torch.sigmoid(qk_attn)
+        silu_derivative = sigmoid_x * (1 + qk_attn * (1 - sigmoid_x))
         
         # 反向传播链式法则
         grad_normalized = grad_masked_qk * attn_mask  # 掩码梯度
@@ -189,6 +161,8 @@ class CustomAttentionFunction(torch.autograd.Function):
         # 计算对 padded_q 和 padded_k 的梯度
         # 公式: d(padded_q) = grad_qk_attn @ padded_k
         #        d(padded_k) = grad_qk_attn^T @ padded_q
+
+        #Triton实现 tip3： [n, n] * [n, d] = [n, d]  
         grad_padded_q = torch.einsum("bhnm,bmhd->bnhd", grad_qk_attn, padded_k)
         grad_padded_k = torch.einsum("bhnm,bnhd->bmhd", grad_qk_attn, padded_q)
 
