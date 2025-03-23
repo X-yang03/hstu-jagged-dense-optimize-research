@@ -136,7 +136,15 @@ def fused_backward_kernel(
             rab = tl.load(rab_ptrs)
 
             #计算qk
-            qk = silu(tl.dot(q, k.T, input_precision = "ieee") + rab) / N
+            qk = tl.dot(q, k.T, input_precision = "ieee") + rab
+            sigmoid_qk = tl.sigmoid(qk)
+            qk_normalized = (qk * sigmoid_qk) / N
+
+            d_silu_qk = sigmoid_qk * (1 + qk * (1 - sigmoid_qk))
+
+            d_qk = tl.dot(d_o, v.T, input_precision = "ieee") / N
+            # (BLOCK_SIZE_N, D) * (D, BLOCK_SIZE_N) -> (BLOCK_SIZE_N, BLOCK_SIZE_N)
+
                 
             if block_kv == block_q:  #mask的处理方式
             # 因为mask是下三角的1矩阵，当block_kv < block_q时，不用做任何处理
@@ -150,16 +158,24 @@ def fused_backward_kernel(
                     order = (0, 1)
                 )
                 attn_mask = tl.load(mask_ptrs)
-                qk = qk * attn_mask  #(BLOCK_SIZE_N, BLOCK_SIZE_N)
-                
+                qk_normalized = qk_normalized * attn_mask  #(BLOCK_SIZE_N, BLOCK_SIZE_N)
+                d_qk = d_qk * attn_mask #掩码梯度
 
-            d_qk = tl.dot(d_o, v.T, input_precision = "ieee")  
-            # (BLOCK_SIZE_N, D) * (D, BLOCK_SIZE_N) -> (BLOCK_SIZE_N, BLOCK_SIZE_N)
-
-            d_v += tl.dot(qk.T, d_o, input_precision = "ieee")
+            d_v += tl.dot(qk_normalized.T, d_o, input_precision = "ieee")
             #mask_qk @ d_o  (m, n)@(n, d) -> (m, d)
-        
+
+            d_qk = d_qk * d_silu_qk
+
+            d_q = tl.dot(d_qk, k, input_precision = "ieee") 
+            # (BLOCK_SIZE_N, BLOCK_SIZE_N) * (BLOCK_SIZE_N, D) -> (BLOCK_SIZE_N, D)
+
+            d_k += tl.dot(d_qk.T, q, input_precision = "ieee")
+
+            tl.store(dq_block_ptrs, d_q)
+
+
         tl.store(dv_block_ptrs, d_v)
+        tl.store(dk_block_ptrs, d_k)
 
 
 
@@ -201,7 +217,7 @@ def fused_jagged_hstu_backward(d_attn, attn,  q, k, v, rab, attn_mask, head, dim
         attn_mask.stride(2), attn_mask.stride(3),
         attn.stride(0), attn.stride(1), attn.stride(2),
     )
-    return d_v
+    return d_q, d_k, d_v
 
 
 
