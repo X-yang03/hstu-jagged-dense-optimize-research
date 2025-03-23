@@ -3,6 +3,10 @@ import torch.nn.functional as F
 from tqdm import tqdm
 import random
 import fbgemm_gpu
+from fused_jagged_hstu import fused_jagged_hstu
+from fused_jagged_hstu_backward import fused_jagged_hstu_backward
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 def get_input(sum_N, head, d, B, n):
@@ -118,9 +122,12 @@ class CustomAttentionFunction(torch.autograd.Function):
         # ---------------------------------------------------------------
         # 反向步骤 1: dense_to_jagged 的梯度
         # 将稀疏梯度 grad_output 转换为稠密形式
+        #print(grad_output.shape)
+        #print(grad_output)
         grad_attn_output = torch.ops.fbgemm.jagged_to_padded_dense(
             grad_output, [x_offsets], [n], padding_value=0.0
         ).view(B, n, head, d)  # (B, n, h, d)
+        #print(grad_attn_output[1,0,0,:])
 
         # ---------------------------------------------------------------
         # 反向步骤 2: einsum("bhnm,bmhd->bnhd") 的梯度
@@ -144,7 +151,7 @@ class CustomAttentionFunction(torch.autograd.Function):
         #x = qk_attn  # qk_attn + rab? or qk_attn * n ? 
 
         # Triton实现 tip2： 这一块主要由qk块计算得到 
-        sigmoid_x = torch.sigmoid(qk_attn)
+        sigmoid_x = torch.sigmoid(qk_attn)  # qk_attn 已经加上了 rab
         silu_derivative = sigmoid_x * (1 + qk_attn * (1 - sigmoid_x))
         
         # 反向传播链式法则
@@ -176,7 +183,6 @@ class CustomAttentionFunction(torch.autograd.Function):
         grad_v = torch.ops.fbgemm.dense_to_jagged(
             grad_padded_v.reshape(B, n, head * d), [x_offsets]
         )[0]
-        print(grad_q.shape)
 
         # ---------------------------------------------------------------
         # 反向步骤 6: jagged_to_padded_dense 的梯度（q, k, v）
@@ -187,8 +193,7 @@ class CustomAttentionFunction(torch.autograd.Function):
         return grad_q, grad_k, grad_v, None, None, None, None, None, None, None
 
 # 使用示例
-
-seq_len = [128, 120, 256, 260, 512, 510, 1024, 1020, 100, 200, 300, 400]
+seq_len = [128, 64, 256]
 n = 0
 B = 20
 x_offsets = [0]
@@ -198,7 +203,7 @@ for i in range(1, B+1):
     x_offsets.append(x_offsets[-1] + rand_seq_len) # 生成一个长度为B的序列，每个元素为0-1024之间的随机数
 x_offsets = torch.tensor(x_offsets, device="cuda") # 转换为tensor
 
-head, d = 8 , 32
+head, d = 2 , 32
 sum_N = int(x_offsets[-1])
 
 q, k, v, rab, attn_mask = get_input(sum_N, head, d, B, n)
@@ -207,17 +212,46 @@ q1 = q.clone().detach().requires_grad_(True)
 k1 = k.clone().detach().requires_grad_(True)
 v1 = v.clone().detach().requires_grad_(True)
 
+q2 = q.clone().detach().requires_grad_(True)
+k2 = k.clone().detach().requires_grad_(True)
+v2 = v.clone().detach().requires_grad_(True)
+rab2 = rab.clone().detach().requires_grad_(True)
+attn_mask2 = attn_mask.clone().detach().requires_grad_(True)
+
 # 前向计算
 output = CustomAttentionFunction.apply(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
 loss = output.sum()
+
+#print(loss)
 loss.backward()
 #print(q.grad[0, :])
 
 output1 = origin_einsum_attn(q1, k1, v1, rab, attn_mask, B, n, head, d, x_offsets)
 
 loss1 = output1.sum()
-print('diff between two forward: ', (output - output1).abs().mean(), (output - output1).abs().max())
+#print('diff between two forward: ', (output - output1).abs().mean(), (output - output1).abs().max())
 loss1.backward()
+
+d_output = torch.ones_like(output)
+
+dq, dk, dv = fused_jagged_hstu_backward(d_output, output, q2, k2, v2, rab2, attn_mask2, head, d, n, x_offsets)
+
+dv = dv.permute(1, 0, 2).contiguous().view(sum_N, head*d)
+dq = dq.permute(1, 0, 2).contiguous().view(sum_N, head*d)
+dk = dk.permute(1, 0, 2).contiguous().view(sum_N, head*d)
+
+
+print('config: sum_N: {}, head: {}, d: {}, B: {}, n: {}'.format(sum_N, head, d, B, n))
+
+print('diff between two v backward(triton): ', (v1.grad - dv).abs().mean(), (v.grad - dv).abs().max(), (v.grad - dv).abs().min())
+print('diff between two q backward(triton): ', (q1.grad - dq).abs().mean(), (q.grad - dq).abs().max(), (q.grad - dq).abs().min())
+print('diff between two k backward(triton): ', (k1.grad - dk).abs().mean(), (k.grad - dk).abs().max(), (k.grad - dk).abs().min())
+
+
+#print(v.grad[1, :] - dv[1, :])
+sns.heatmap((v.grad - dv).cpu().numpy())
+#plt.savefig("heatmap.png", dpi=300, bbox_inches="tight")  # 保存到当前
+
 
 print('diff between two q backward: ', (q.grad - q1.grad).abs().mean(), (q.grad - q1.grad).abs().max())
 print('diff between two k backward: ', (k.grad - k1.grad).abs().mean(), (k.grad - k1.grad).abs().max())

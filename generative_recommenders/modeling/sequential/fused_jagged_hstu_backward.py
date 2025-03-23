@@ -122,7 +122,7 @@ def fused_backward_kernel(
                     order = (0, 1)
                 )
             
-            o = tl.load(o_block_ptrs)
+            #o = tl.load(o_block_ptrs)
             d_o = tl.load(do_block_ptrs)  # (N, D)
 
             rab_ptrs = tl.make_block_ptr(  # rab shape : (B,1,N,N)
@@ -176,14 +176,6 @@ def fused_backward_kernel(
 
         tl.store(dv_block_ptrs, d_v)
         tl.store(dk_block_ptrs, d_k)
-
-
-
-
-
-        
-
-
 
 
 def fused_jagged_hstu_backward(d_attn, attn,  q, k, v, rab, attn_mask, head, dim, n, x_offsets):
