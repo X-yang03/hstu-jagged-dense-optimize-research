@@ -212,9 +212,6 @@ q1 = q.clone().detach().requires_grad_(True)
 k1 = k.clone().detach().requires_grad_(True)
 v1 = v.clone().detach().requires_grad_(True)
 
-q2 = q.clone().detach().requires_grad_(True)
-k2 = k.clone().detach().requires_grad_(True)
-v2 = v.clone().detach().requires_grad_(True)
 #rab2 = rab.clone().detach().requires_grad_(True)
 #attn_mask2 = attn_mask.clone().detach().requires_grad_(True)
 
@@ -232,33 +229,8 @@ loss1 = output1.sum()
 #print('diff between two forward: ', (output - output1).abs().mean(), (output - output1).abs().max())
 loss1.backward()
 
-d_output = torch.ones_like(output)
-
-dq, dk, dv = fused_jagged_hstu_backward(d_output, q2, k2, v2, rab, attn_mask, head, d, n, x_offsets)
-
-dv = dv.permute(1, 0, 2).contiguous().view(sum_N, head*d)
-dq = dq.permute(1, 0, 2).contiguous().view(sum_N, head*d)
-dk = dk.permute(1, 0, 2).contiguous().view(sum_N, head*d)
-
-
-print('config: sum_N: {}, head: {}, d: {}, B: {}, n: {}'.format(sum_N, head, d, B, n))
-
-print('diff between two v backward(triton): ', (v1.grad - dv).abs().mean(), (v.grad - dv).abs().max(), (v.grad - dv).abs().min())
-print('diff between two q backward(triton): ', (q1.grad - dq).abs().mean(), (q.grad - dq).abs().max(), (q.grad - dq).abs().min())
-print('diff between two k backward(triton): ', (k1.grad - dk).abs().mean(), (k.grad - dk).abs().max(), (k.grad - dk).abs().min())
-
-
-#print(v.grad[1, :] - dv[1, :])
-sns.heatmap((v.grad - dv).cpu().numpy())
-#plt.savefig("heatmap.png", dpi=300, bbox_inches="tight")  # 保存到当前
-
-
 print('diff between two q backward: ', (q.grad - q1.grad).abs().mean(), (q.grad - q1.grad).abs().max())
 print('diff between two k backward: ', (k.grad - k1.grad).abs().mean(), (k.grad - k1.grad).abs().max())
 print('diff between two v backward: ', (v.grad - v1.grad).abs().mean(), (v.grad - v1.grad).abs().max())
-#print(q1.grad[0, :])
-# 验证梯度存在
-print(q.grad.shape)  # torch.Size([25, 64])
-print(k.grad.shape)  # torch.Size([25, 64])
-print(v.grad.shape)  # torch.Size([25, 64])
+
 #print(rab.grad.shape) # torch.Size([2, 4, 10, 10])
