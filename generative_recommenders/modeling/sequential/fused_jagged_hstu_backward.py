@@ -166,7 +166,7 @@ def fused_backward_kernel(
 
             d_qk = d_qk * d_silu_qk
 
-            d_q = tl.dot(d_qk, k, input_precision = "ieee") 
+            d_q += tl.dot(d_qk, k, input_precision = "ieee") 
             # (BLOCK_SIZE_N, BLOCK_SIZE_N) * (BLOCK_SIZE_N, D) -> (BLOCK_SIZE_N, D)
 
             d_k += tl.dot(d_qk.T, q, input_precision = "ieee")
