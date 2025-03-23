@@ -17,7 +17,6 @@ def silu(x):
 def fused_backward_kernel(
     Q_ptr, K_ptr, V_ptr, rab_ptr,
     dQ_ptr, dK_ptr, dV_ptr, 
-    Out_ptr,
     dOut_ptr,
     attn_mask_ptr,
     x_offsets_ptr,
@@ -116,14 +115,6 @@ def fused_backward_kernel(
                     q = tl.load(q_block_ptrs)
                     d_q = tl.load(dq_block_ptrs)
 
-                    o_block_ptrs = tl.make_block_ptr(
-                            base = Out_ptr + pid_h*stride_out_h + start*stride_out_n,
-                            shape = (len_sample.to(tl.int32) , D),
-                            strides = (stride_out_n, stride_out_d),
-                            offsets = (block_q , 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
-                            block_shape = (BLOCK_SIZE_N, D),
-                            order = (0, 1)
-                        )
                     do_block_ptrs = tl.make_block_ptr(
                             base = dOut_ptr + pid_h*stride_out_h + start*stride_out_n,
                             shape = (len_sample.to(tl.int32) , D),
@@ -133,7 +124,6 @@ def fused_backward_kernel(
                             order = (0, 1)
                         )
                     
-                    #o = tl.load(o_block_ptrs)
                     d_o = tl.load(do_block_ptrs)  # (N, D)
 
                     #计算qk
@@ -181,14 +171,7 @@ def fused_backward_kernel(
                         tl.arange(0, D)[None, :] * stride_qd
                     mask = (block_q + tl.arange(0, BLOCK_SIZE_N))[:,None] < len_sample
                     q = tl.load(q_ptrs, mask=mask, other=0)
-
-                    o_ptrs = Out_ptr + pid_h*stride_out_h + start * stride_out_n +\
-                            block_q  * stride_out_n + \
-                            tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_out_n + \
-                            tl.arange(0, D)[None, :] * stride_out_d
-                    
                     #q = tl.load(q_ptrs)
-                    o = tl.load(o_ptrs, mask=mask, other=0)
 
                     dq_ptrs = dQ_ptr + pid_h * stride_qh + start * stride_qn +\
                             block_q * stride_qn + \
@@ -304,14 +287,6 @@ def fused_backward_kernel(
                     q = tl.load(q_block_ptrs)
                     d_q = tl.load(dq_block_ptrs)
 
-                    o_block_ptrs = tl.make_block_ptr(
-                            base = Out_ptr + pid_h*stride_out_h + start*stride_out_n,
-                            shape = (len_sample.to(tl.int32) , D),
-                            strides = (stride_out_n, stride_out_d),
-                            offsets = (block_q , 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
-                            block_shape = (BLOCK_SIZE_N, D),
-                            order = (0, 1)
-                        )
                     do_block_ptrs = tl.make_block_ptr(
                             base = dOut_ptr + pid_h*stride_out_h + start*stride_out_n,
                             shape = (len_sample.to(tl.int32) , D),
@@ -321,7 +296,6 @@ def fused_backward_kernel(
                             order = (0, 1)
                         )
                     
-                    #o = tl.load(o_block_ptrs)
                     d_o = tl.load(do_block_ptrs)  # (N, D)
 
                     #计算qk
@@ -369,14 +343,9 @@ def fused_backward_kernel(
                         tl.arange(0, D)[None, :] * stride_qd
                     mask = (block_q + tl.arange(0, BLOCK_SIZE_N))[:,None] < len_sample
                     q = tl.load(q_ptrs, mask=mask, other=0)
-
-                    o_ptrs = Out_ptr + pid_h*stride_out_h + start * stride_out_n +\
-                            block_q  * stride_out_n + \
-                            tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_out_n + \
-                            tl.arange(0, D)[None, :] * stride_out_d
                     
                     #q = tl.load(q_ptrs)
-                    o = tl.load(o_ptrs, mask=mask, other=0)
+                    #o = tl.load(o_ptrs, mask=mask, other=0)
 
                     dq_ptrs = dQ_ptr + pid_h * stride_qh + start * stride_qn +\
                             block_q * stride_qn + \
@@ -431,11 +400,11 @@ def fused_backward_kernel(
             tl.store(dv_ptrs, d_v, mask=mask)
 
 
-def fused_jagged_hstu_backward(d_attn, attn,  q, k, v, rab, attn_mask, head, dim, n, x_offsets):
+def fused_jagged_hstu_backward(d_attn, q, k, v, rab, attn_mask, head, dim, n, x_offsets):
     # d_attn : (sum_N, num_heads*d)
     sum_N, _ = d_attn.shape
     d_attn = d_attn.view(sum_N, head, dim).permute(1, 0, 2).contiguous()
-    attn = attn.view(sum_N, head, dim).permute(1, 0, 2).contiguous()
+    #attn = attn.view(sum_N, head, dim).permute(1, 0, 2).contiguous()
     q = q.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
     k = k.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
     v = v.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d
@@ -450,7 +419,6 @@ def fused_jagged_hstu_backward(d_attn, attn,  q, k, v, rab, attn_mask, head, dim
     fused_backward_kernel[grid](
         q, k, v, rab,
         d_q, d_k, d_v,
-        attn,
         d_attn ,
         attn_mask,
         x_offsets,
@@ -460,7 +428,7 @@ def fused_jagged_hstu_backward(d_attn, attn,  q, k, v, rab, attn_mask, head, dim
         v.stride(0), v.stride(1), v.stride(2),
         rab.stride(0), rab.stride(1), rab.stride(2), rab.stride(3),
         attn_mask.stride(2), attn_mask.stride(3),
-        attn.stride(0), attn.stride(1), attn.stride(2),
+        d_attn.stride(0), d_attn.stride(1), d_attn.stride(2),
     )
     return d_q, d_k, d_v
 

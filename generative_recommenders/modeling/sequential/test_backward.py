@@ -215,8 +215,8 @@ v1 = v.clone().detach().requires_grad_(True)
 q2 = q.clone().detach().requires_grad_(True)
 k2 = k.clone().detach().requires_grad_(True)
 v2 = v.clone().detach().requires_grad_(True)
-rab2 = rab.clone().detach().requires_grad_(True)
-attn_mask2 = attn_mask.clone().detach().requires_grad_(True)
+#rab2 = rab.clone().detach().requires_grad_(True)
+#attn_mask2 = attn_mask.clone().detach().requires_grad_(True)
 
 # 前向计算
 output = CustomAttentionFunction.apply(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
@@ -234,7 +234,7 @@ loss1.backward()
 
 d_output = torch.ones_like(output)
 
-dq, dk, dv = fused_jagged_hstu_backward(d_output, output, q2, k2, v2, rab2, attn_mask2, head, d, n, x_offsets)
+dq, dk, dv = fused_jagged_hstu_backward(d_output, q2, k2, v2, rab, attn_mask, head, d, n, x_offsets)
 
 dv = dv.permute(1, 0, 2).contiguous().view(sum_N, head*d)
 dq = dq.permute(1, 0, 2).contiguous().view(sum_N, head*d)
