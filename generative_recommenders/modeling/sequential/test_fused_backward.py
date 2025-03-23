@@ -60,7 +60,7 @@ for i in range(1, B+1):
     x_offsets.append(x_offsets[-1] + rand_seq_len) # 生成一个长度为B的序列，每个元素为0-1024之间的随机数
 x_offsets = torch.tensor(x_offsets, device="cuda") # 转换为tensor
 
-head, d = 8 , 32
+head, d = 8 , 25
 sum_N = int(x_offsets[-1])
 
 print('benchmark config: sum_N: {}, head: {}, d: {}, B: {}, n: {}'.format(sum_N, head, d, B, n))

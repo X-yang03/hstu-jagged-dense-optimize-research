@@ -142,13 +142,13 @@ class RelativeBucketedTimeAndPositionBasedBias(RelativeAttentionBiasModule):
         return rel_pos_bias + rel_ts_bias
 
 
-HSTUCacheState = Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+HSTUCacheState = Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]  
 
 
-def _hstu_attention_maybe_from_cache(
+def _hstu_attention_maybe_from_cache(  #在rel_bias模式下计算注意力输出
     num_heads: int,
-    attention_dim: int,
-    linear_dim: int,
+    attention_dim: int,  #dqk
+    linear_dim: int,  #dv
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,
@@ -160,12 +160,13 @@ def _hstu_attention_maybe_from_cache(
     invalid_attn_mask: torch.Tensor,
     rel_attn_bias: RelativeAttentionBiasModule,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    B: int = x_offsets.size(0) - 1
-    n: int = invalid_attn_mask.size(-1)
-    if delta_x_offsets is not None:
+    B: int = x_offsets.size(0) - 1   #batch size
+    n: int = invalid_attn_mask.size(-1) #token数量
+    #print(f'num_heads: {num_heads}, attention_dim: {attention_dim}, linear_dim: {linear_dim},B:{B},n:{n}, delta_x_offsets: {delta_x_offsets}, x_offsets: {x_offsets.size()}, all_timestamps: {all_timestamps.size()}, invalid_attn_mask: {invalid_attn_mask.size()}')
+    if delta_x_offsets is not None:  #有新增的输入
         padded_q, padded_k = cached_q, cached_k
-        flattened_offsets = delta_x_offsets[1] + torch.arange(
-            start=0,
+        flattened_offsets = delta_x_offsets[1] + torch.arange(  #delta[1]:经过 padding 得到的固定长度表示中，给出局部的起始位置或偏移量
+            start=0,                                #加上[0, n, 2n, 3n, ...]，得到需要更新的位置(扁平化), 长度为B
             end=B * n,
             step=n,
             device=delta_x_offsets[1].device,
@@ -173,11 +174,11 @@ def _hstu_attention_maybe_from_cache(
         )
         assert isinstance(padded_q, torch.Tensor)
         assert isinstance(padded_k, torch.Tensor)
-        padded_q = (
-            padded_q.view(B * n, -1)
+        padded_q = ( #根据delta_x_offsets更新padded_q和padded_k
+            padded_q.view(B * n, -1)  #将padded_q展平， padded_q和padded_k的形状为[B, N, h*dqk]，cached_q也是， 展平后形状为[B*N, h*dqk]
             .index_copy_(
                 dim=0,
-                index=flattened_offsets,
+                index=flattened_offsets,  #需要更新的位置
                 source=q,
             )
             .view(B, n, -1)
@@ -191,37 +192,47 @@ def _hstu_attention_maybe_from_cache(
             )
             .view(B, n, -1)
         )
-    else:
-        padded_q = torch.ops.fbgemm.jagged_to_padded_dense(
+    else: #q k 原本是[sum_N, h*dqk]，需要转换为padded形式, 变为[B, n, h*dqk]
+        padded_q = torch.ops.fbgemm.jagged_to_padded_dense(  #根据x_offsets的位置信息，将q和k转换为padded形式，统一为长为n的序列， [B, n, num_heads*dqk]
             values=q, offsets=[x_offsets], max_lengths=[n], padding_value=0.0
         )
         padded_k = torch.ops.fbgemm.jagged_to_padded_dense(
             values=k, offsets=[x_offsets], max_lengths=[n], padding_value=0.0
         )
-
+        
+    #print(f'before padding: q:{q.size()}, k:{k.size()}, v: {v.size()}')
     qk_attn = torch.einsum(
-        "bnhd,bmhd->bhnm",
+        "bnhd,bmhd->bhnm",  #在attention_dim维度上计算q和k的点积  ,attn形状(B,num_heads,n,n)
         padded_q.view(B, n, num_heads, attention_dim),
         padded_k.view(B, n, num_heads, attention_dim),
     )
+
+    print("q grad, ", q.requires_grad)
+    print("k grad, ", k.requires_grad)
+    print("v grad, ", v.requires_grad)
+    
     if all_timestamps is not None:
-        qk_attn = qk_attn + rel_attn_bias(all_timestamps).unsqueeze(1)
-    qk_attn = F.silu(qk_attn) / n
+        qk_attn = qk_attn + rel_attn_bias(all_timestamps).unsqueeze(1) #加入相对位置偏置
+    qk_attn = F.silu(qk_attn) / n #SiLU之后局部归一化
     qk_attn = qk_attn * invalid_attn_mask.unsqueeze(0).unsqueeze(0)
-    attn_output = torch.ops.fbgemm.dense_to_jagged(
+    # print("rab shape: ", rel_attn_bias(all_timestamps).unsqueeze(1).shape)
+    # print("mask shape:", invalid_attn_mask.unsqueeze(0).unsqueeze(0).shape)
+    #print(invalid_attn_mask.unsqueeze(0).unsqueeze(0))
+    attn_output = torch.ops.fbgemm.dense_to_jagged( #Φ(qk)v  , dense_to_jagged将输出转换为(sum_N, head*d)形状
         torch.einsum(
             "bhnm,bmhd->bnhd",
             qk_attn,
             torch.ops.fbgemm.jagged_to_padded_dense(v, [x_offsets], [n]).reshape(
-                B, n, num_heads, linear_dim
+                B, n, num_heads, linear_dim  #将v转换为padded形式
             ),
-        ).reshape(B, n, num_heads * linear_dim),
+        ).reshape(B, n, num_heads * linear_dim), 
         [x_offsets],
     )[0]
+    #print(f'after padding: q:{padded_q.size()}, k:{padded_k.size()}, v: {v.size()}, qk_attn: {qk_attn.size()}, attn_output: {attn_output.size()}')
     return attn_output, padded_q, padded_k
 
 
-class SequentialTransductionUnitJagged(torch.nn.Module):
+class SequentialTransductionUnitJagged(torch.nn.Module):  #单层STU
     def __init__(
         self,
         embedding_dim: int,
@@ -251,7 +262,7 @@ class SequentialTransductionUnitJagged(torch.nn.Module):
         self._normalization: str = normalization
         self._linear_config: str = linear_config
         if self._linear_config == "uvqk":
-            self._uvqk: torch.nn.Parameter = torch.nn.Parameter(
+            self._uvqk: torch.nn.Parameter = torch.nn.Parameter(  #uvqk矩阵，[embed_dim, h*2*dv + h*2*dqk]
                 torch.empty(
                     (
                         embedding_dim,
@@ -282,7 +293,7 @@ class SequentialTransductionUnitJagged(torch.nn.Module):
     def forward(  # pyre-ignore [3]
         self,
         x: torch.Tensor,
-        x_offsets: torch.Tensor,
+        x_offsets: torch.Tensor, #录了每个样本开始的位置
         all_timestamps: Optional[torch.Tensor],
         invalid_attn_mask: torch.Tensor,
         delta_x_offsets: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
@@ -291,8 +302,8 @@ class SequentialTransductionUnitJagged(torch.nn.Module):
     ):
         """
         Args:
-            x: (\sum_i N_i, D) x float.
-            x_offsets: (B + 1) x int32.
+            x: (\sum_i N_i, D) x float.  # sum(N_i), 不同输入长度的x拼接后序列输入 [total_len, Dim]
+            x_offsets: (B + 1) x int32. ,
             all_timestamps: optional (B, N) x int64.
             invalid_attn_mask: (B, N, N) x float, each element in {0, 1}.
             delta_x_offsets: optional 2-tuple ((B,) x int32, (B,) x int32).
@@ -303,30 +314,31 @@ class SequentialTransductionUnitJagged(torch.nn.Module):
         Returns:
             x' = f(x), (\sum_i N_i, D) x float.
         """
-        n: int = invalid_attn_mask.size(-1)
+        n: int = invalid_attn_mask.size(-1) 
         cached_q = None
         cached_k = None
-        if delta_x_offsets is not None:
+        if delta_x_offsets is not None:  # (tensor1 , tensor2), tensor1指定需要更新的位置，tensor2指定需要更新的长度
             # In this case, for all the following code, x, u, v, q, k become restricted to
             # [delta_x_offsets[0], :].
             assert cache is not None
-            x = x[delta_x_offsets[0], :]
+            x = x[delta_x_offsets[0], :] #其中第一个张量（delta_x_offsets[0]）的形状为 (B,)，其中 B 为批次大小。该张量中的每个元素表示在全局连续数据中需要更新的样本索引。
             cached_v, cached_q, cached_k, cached_outputs = cache
 
         normed_x = self._norm_input(x)
+        print(f'x: {x.size()}, uvqk:{self._uvqk.size()}, x_offsets: {x_offsets.size()},delta_x_offsets: {delta_x_offsets}')
 
         if self._linear_config == "uvqk":
-            batched_mm_output = torch.mm(normed_x, self._uvqk)
+            batched_mm_output = torch.mm(normed_x, self._uvqk)  # f(x) = Wx,  [sum_N, D] * [D, 2*h*dv + 2*h*dqk] = [sum_N, 2*h*dv + 2*h*dqk]
             if self._linear_activation == "silu":
-                batched_mm_output = F.silu(batched_mm_output)
+                batched_mm_output = F.silu(batched_mm_output) # Φ(f(x)) 非线性激活
             elif self._linear_activation == "none":
                 batched_mm_output = batched_mm_output
-            u, v, q, k = torch.split(
+            u, v, q, k = torch.split(  #Split(Φ(f(x))) = [u, v, q, k] , u and v [sum_N, h*dv], q and k [sum_N, h*dqk]
                 batched_mm_output,
                 [
+                    self._linear_dim * self._num_heads,  # (dv, h)
                     self._linear_dim * self._num_heads,
-                    self._linear_dim * self._num_heads,
-                    self._attention_dim * self._num_heads,
+                    self._attention_dim * self._num_heads,  #(dqk, h)
                     self._attention_dim * self._num_heads,
                 ],
                 dim=1,
@@ -336,11 +348,12 @@ class SequentialTransductionUnitJagged(torch.nn.Module):
 
         if delta_x_offsets is not None:
             v = cached_v.index_copy_(dim=0, index=delta_x_offsets[0], source=v)
+            #将 cached_v 沿着第 0 维（通常对应批次维度）中，位于 delta_x_offsets[0] 所指定的那些索引位置的值，用新计算得到的 v 的对应部分替换掉
 
         B: int = x_offsets.size(0) - 1
         if self._normalization == "rel_bias" or self._normalization == "hstu_rel_bias":
             assert self._rel_attn_bias is not None
-            attn_output, padded_q, padded_k = _hstu_attention_maybe_from_cache(
+            attn_output, padded_q, padded_k = _hstu_attention_maybe_from_cache(  #计算注意力输出,hstu本身不带softmax
                 num_heads=self._num_heads,
                 attention_dim=self._attention_dim,
                 linear_dim=self._linear_dim,
@@ -355,9 +368,9 @@ class SequentialTransductionUnitJagged(torch.nn.Module):
                 invalid_attn_mask=invalid_attn_mask,
                 rel_attn_bias=self._rel_attn_bias,
             )
-        elif self._normalization == "softmax_rel_bias":
-            if delta_x_offsets is not None:
-                B = x_offsets.size(0) - 1
+        elif self._normalization == "softmax_rel_bias": #使用softmax的版本
+            if delta_x_offsets is not None: #有新增的输入
+                B = x_offsets.size(0) - 1 #batch size
                 padded_q, padded_k = cached_q, cached_k
                 flattened_offsets = delta_x_offsets[1] + torch.arange(
                     start=0,
@@ -396,9 +409,9 @@ class SequentialTransductionUnitJagged(torch.nn.Module):
 
             qk_attn = torch.einsum("bnd,bmd->bnm", padded_q, padded_k)
             if self._rel_attn_bias is not None:
-                qk_attn = qk_attn + self._rel_attn_bias(all_timestamps)
-            qk_attn = F.softmax(qk_attn / math.sqrt(self._attention_dim), dim=-1)
-            qk_attn = qk_attn * invalid_attn_mask
+                qk_attn = qk_attn + self._rel_attn_bias(all_timestamps)  #加入相对位置偏置
+            qk_attn = F.softmax(qk_attn / math.sqrt(self._attention_dim), dim=-1) #softmax
+            qk_attn = qk_attn * invalid_attn_mask  #掩码
             attn_output = torch.ops.fbgemm.dense_to_jagged(
                 torch.bmm(
                     qk_attn,
@@ -442,7 +455,7 @@ class SequentialTransductionUnitJagged(torch.nn.Module):
         return new_outputs, (v, padded_q, padded_k, new_outputs)
 
 
-class HSTUJagged(torch.nn.Module):
+class HSTUJagged(torch.nn.Module): 
     def __init__(
         self,
         modules: List[SequentialTransductionUnitJagged],
@@ -450,12 +463,12 @@ class HSTUJagged(torch.nn.Module):
     ) -> None:
         super().__init__()
 
-        self._attention_layers: torch.nn.ModuleList = torch.nn.ModuleList(
-            modules=modules
+        self._attention_layers: torch.nn.ModuleList = torch.nn.ModuleList(  #堆叠多层STU
+            modules=modules  
         )
         self._autocast_dtype: Optional[torch.dtype] = autocast_dtype
 
-    def jagged_forward(
+    def jagged_forward( # 处理不规则序列（Jagged Tensor）
         self,
         x: torch.Tensor,
         x_offsets: torch.Tensor,
@@ -546,7 +559,7 @@ class HSTU(SequentialEncoderWithLearnedSimilarityModule):
 
     Note that this implementation is intended for reproducing experiments in
     the traditional sequential recommender setting (Section 4.1.1), and does
-    not yet use optimized kernels discussed in the paper.
+    not yet use optimized kernels discussed in the paper. # 本实现用于传统的序列推荐设置，不使用论文中讨论的优化内核
     """
 
     def __init__(
@@ -583,8 +596,8 @@ class HSTU(SequentialEncoderWithLearnedSimilarityModule):
         self._output_postproc: OutputPostprocessorModule = output_postproc_module
         self._num_blocks: int = num_blocks
         self._num_heads: int = num_heads
-        self._dqk: int = attention_dim
-        self._dv: int = linear_dim
+        self._dqk: int = attention_dim  #qk维度 attention_Dim
+        self._dv: int = linear_dim #v和u的维度 linear_dim
         self._linear_activation: str = linear_activation
         self._linear_dropout_rate: float = linear_dropout_rate
         self._attn_dropout_rate: float = attn_dropout_rate
@@ -598,10 +611,10 @@ class HSTU(SequentialEncoderWithLearnedSimilarityModule):
                     normalization=normalization,
                     linear_config=linear_config,
                     linear_activation=linear_activation,
-                    num_heads=num_heads,
+                    num_heads=num_heads, #8个注意力头
                     # TODO: change to lambda x.
                     relative_attention_bias_module=(
-                        RelativeBucketedTimeAndPositionBasedBias(
+                        RelativeBucketedTimeAndPositionBasedBias( #相对位置偏置
                             max_seq_len=max_sequence_len
                             + max_output_len,  # accounts for next item.
                             num_buckets=128,
@@ -616,7 +629,7 @@ class HSTU(SequentialEncoderWithLearnedSimilarityModule):
                     attn_dropout_ratio=attn_dropout_rate,
                     concat_ua=concat_ua,
                 )
-                for _ in range(num_blocks)
+                for _ in range(num_blocks)  #堆叠多层STU
             ],
             autocast_dtype=None,
         )
@@ -666,7 +679,7 @@ class HSTU(SequentialEncoderWithLearnedSimilarityModule):
             debug_str += "-norab"
         return debug_str
 
-    def generate_user_embeddings(
+    def generate_user_embeddings( # 编码
         self,
         past_lengths: torch.Tensor,
         past_ids: torch.Tensor,
@@ -692,11 +705,11 @@ class HSTU(SequentialEncoderWithLearnedSimilarityModule):
 
         float_dtype = user_embeddings.dtype
         user_embeddings, cached_states = self._hstu(
-            x=user_embeddings,
-            x_offsets=torch.ops.fbgemm.asynchronous_complete_cumsum(past_lengths),
+            x=user_embeddings, #输入
+            x_offsets=torch.ops.fbgemm.asynchronous_complete_cumsum(past_lengths),  #累加，已经输入过的长度,得到每个样本开始的位置x_offsets
             all_timestamps=(
                 past_payloads[TIMESTAMPS_KEY]
-                if TIMESTAMPS_KEY in past_payloads
+                if TIMESTAMPS_KEY in past_payloads  #引入时序信息，用于计算rab
                 else None
             ),
             invalid_attn_mask=1.0 - self._attn_mask.to(float_dtype),

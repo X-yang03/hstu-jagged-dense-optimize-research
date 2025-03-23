@@ -4,6 +4,7 @@ from tqdm import tqdm
 from fused_jagged_hstu import fused_jagged_hstu
 import random
 import fbgemm_gpu
+from fused_hstu_op import FusedHSTUOp
 
 def origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets):
     padded_q = torch.ops.fbgemm.jagged_to_padded_dense(  #根据x_offsets的位置信息，将q和k转换为padded形式，统一为长为n的序列， [B, n, num_heads*dqk]
@@ -52,7 +53,7 @@ for i in range(1, B+1):
     x_offsets.append(x_offsets[-1] + random.choice(interval))
 x_offsets = torch.tensor(x_offsets, device="cuda")
 
-head, d = 8 , 32
+head, d = 8 , 25
 sum_N = x_offsets[-1]
 
 q, k, v, rab, attn_mask = get_input(sum_N, head, d, B, n)
@@ -81,13 +82,13 @@ print("einsum Time round 2: {}ms ".format(start_event.elapsed_time(end_event)))
 print("attn_output shape: ", attn_output.shape)
 
 start_event.record()
-output = fused_jagged_hstu(q, k, v, rab, attn_mask, head, d, n, x_offsets).permute(1, 0, 2).contiguous().view(sum_N, head*d)
+output = FusedHSTUOp.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
 end_event.record()
 torch.cuda.synchronize()
 print("Triton Time round1: {}ms ".format(start_event.elapsed_time(end_event)))
 
 start_event.record()
-output = fused_jagged_hstu(q, k, v, rab, attn_mask, head, d, n, x_offsets).permute(1, 0, 2).contiguous().view(sum_N, head*d)
+output = FusedHSTUOp.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
 end_event.record()
 torch.cuda.synchronize()
 print("Triton Time round 2: {}ms ".format(start_event.elapsed_time(end_event)))
