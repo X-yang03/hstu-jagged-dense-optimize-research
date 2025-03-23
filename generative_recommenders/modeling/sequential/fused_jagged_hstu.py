@@ -182,10 +182,6 @@ def fused_jagged_hstu(q, k, v, rab, attn_mask, head, dim, n, x_offsets):  #n为�
     # q k v shape: (sum_N, head*d)
     # rab shape: (B, 1, n, n)
     # attn_mask shape: (1, 1, n, n)
-    sum_N, _ = q.shape
-    q = q.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
-    k = k.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
-    v = v.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d
     # contiguous() 操作带来一定的额外开销，有优化空间
 
     B = len(x_offsets) - 1

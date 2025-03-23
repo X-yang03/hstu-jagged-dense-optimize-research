@@ -402,12 +402,12 @@ def fused_backward_kernel(
 
 def fused_jagged_hstu_backward(d_attn, q, k, v, rab, attn_mask, head, dim, n, x_offsets):
     # d_attn : (sum_N, num_heads*d)
-    sum_N, _ = d_attn.shape
-    d_attn = d_attn.view(sum_N, head, dim).permute(1, 0, 2).contiguous()
+    # sum_N, _ = d_attn.shape
+    # d_attn = d_attn.view(sum_N, head, dim).permute(1, 0, 2).contiguous()
     #attn = attn.view(sum_N, head, dim).permute(1, 0, 2).contiguous()
-    q = q.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
-    k = k.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
-    v = v.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d
+    # q = q.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
+    # k = k.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
+    # v = v.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d
 
     B = x_offsets.shape[0] - 1
     d_q = torch.zeros_like(q)
