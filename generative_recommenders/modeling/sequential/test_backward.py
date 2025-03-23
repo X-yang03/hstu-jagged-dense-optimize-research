@@ -193,7 +193,7 @@ class CustomAttentionFunction(torch.autograd.Function):
         return grad_q, grad_k, grad_v, None, None, None, None, None, None, None
 
 # 使用示例
-seq_len = [128, 64, 256]
+seq_len = [120, 60, 250]
 n = 0
 B = 20
 x_offsets = [0]
