@@ -53,7 +53,7 @@ def fused_backward_kernel(
 
             v_block_ptrs = tl.make_block_ptr(
                 base=V_ptr + pid_h * stride_vh + start * stride_vn,
-                shape = (len_sample.to(tl.int32), D),
+                shape = (len_sample, D),
                 strides = (stride_vn, stride_vd),
                 offsets = (block_kv, 0),
                 block_shape = (BLOCK_SIZE_N, D),
@@ -62,7 +62,7 @@ def fused_backward_kernel(
 
             dk_block_ptrs = tl.make_block_ptr(
                 base=dK_ptr + pid_h * stride_kh + start * stride_kn,
-                shape = (len_sample.to(tl.int32), D),
+                shape = (len_sample, D),
                 strides = (stride_kn, stride_kd),
                 offsets = (block_kv, 0),
                 block_shape = (BLOCK_SIZE_N, D),
@@ -71,7 +71,7 @@ def fused_backward_kernel(
 
             dv_block_ptrs = tl.make_block_ptr(
                 base=dV_ptr + pid_h * stride_vh + start * stride_vn,
-                shape = (len_sample.to(tl.int32), D),
+                shape = (len_sample, D),
                 strides = (stride_vn, stride_vd),
                 offsets = (block_kv, 0),
                 block_shape = (BLOCK_SIZE_N, D),
@@ -96,7 +96,7 @@ def fused_backward_kernel(
                 #q = tl.zeros((BLOCK_SIZE_N, D), dtype=tl.float32)
                     q_block_ptrs = tl.make_block_ptr(
                         base=Q_ptr + pid_h * stride_qh + start * stride_qn,
-                        shape = (len_sample.to(tl.int32), D),
+                        shape = (len_sample, D),
                         strides = (stride_qn, stride_qd),
                         offsets = (block_q, 0),
                         block_shape = (BLOCK_SIZE_N, D),
@@ -105,7 +105,7 @@ def fused_backward_kernel(
 
                     dq_block_ptrs = tl.make_block_ptr(
                         base=dQ_ptr + pid_h * stride_qh + start * stride_qn,
-                        shape = (len_sample.to(tl.int32), D),
+                        shape = (len_sample, D),
                         strides = (stride_qn, stride_qd),
                         offsets = (block_q, 0),
                         block_shape = (BLOCK_SIZE_N, D),
@@ -117,7 +117,7 @@ def fused_backward_kernel(
 
                     do_block_ptrs = tl.make_block_ptr(
                             base = dOut_ptr + pid_h*stride_out_h + start*stride_out_n,
-                            shape = (len_sample.to(tl.int32) , D),
+                            shape = (len_sample, D),
                             strides = (stride_out_n, stride_out_d),
                             offsets = (block_q , 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
                             block_shape = (BLOCK_SIZE_N, D),
@@ -268,7 +268,7 @@ def fused_backward_kernel(
                 #q = tl.zeros((BLOCK_SIZE_N, D), dtype=tl.float32)
                     q_block_ptrs = tl.make_block_ptr(
                         base=Q_ptr + pid_h * stride_qh + start * stride_qn,
-                        shape = (len_sample.to(tl.int32), D),
+                        shape = (len_sample, D),
                         strides = (stride_qn, stride_qd),
                         offsets = (block_q, 0),
                         block_shape = (BLOCK_SIZE_N, D),
@@ -277,7 +277,7 @@ def fused_backward_kernel(
 
                     dq_block_ptrs = tl.make_block_ptr(
                         base=dQ_ptr + pid_h * stride_qh + start * stride_qn,
-                        shape = (len_sample.to(tl.int32), D),
+                        shape = (len_sample, D),
                         strides = (stride_qn, stride_qd),
                         offsets = (block_q, 0),
                         block_shape = (BLOCK_SIZE_N, D),
@@ -289,7 +289,7 @@ def fused_backward_kernel(
 
                     do_block_ptrs = tl.make_block_ptr(
                             base = dOut_ptr + pid_h*stride_out_h + start*stride_out_n,
-                            shape = (len_sample.to(tl.int32) , D),
+                            shape = (len_sample , D),
                             strides = (stride_out_n, stride_out_d),
                             offsets = (block_q , 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
                             block_shape = (BLOCK_SIZE_N, D),

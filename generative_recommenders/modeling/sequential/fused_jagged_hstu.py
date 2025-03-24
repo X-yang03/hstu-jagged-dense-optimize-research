@@ -67,7 +67,7 @@ def fused_jagged_hstu_kernel(
 
             v_block_ptrs = tl.make_block_ptr(
                 base=V_ptr + pid_h * stride_vh + start * stride_vn,
-                shape = (len_sample.to(tl.int32), D),
+                shape = (len_sample, D),
                 strides = (stride_vn, stride_vd),
                 offsets = (block_kv, 0),
                 block_shape = (BLOCK_SIZE_N, D),
@@ -109,7 +109,7 @@ def fused_jagged_hstu_kernel(
             if block_q + BLOCK_SIZE_N <= len_sample:
                 q_block_ptrs = tl.make_block_ptr(
                     base=Q_ptr + pid_h * stride_qh + start * stride_qn, # 当前sequence的Q起始位置
-                    shape = (len_sample.to(tl.int32), D),
+                    shape = (len_sample, D),
                     strides = (stride_qn, stride_qd),
                     offsets = (block_q , 0),
                     block_shape = (BLOCK_SIZE_N, D),
@@ -117,7 +117,7 @@ def fused_jagged_hstu_kernel(
                 )
                 o_block_ptrs = tl.make_block_ptr(
                     base = Out_ptr + pid_h*stride_out_h + start*stride_out_n,
-                    shape = (len_sample.to(tl.int32) , D),
+                    shape = (len_sample , D),
                     strides = (stride_out_n, stride_out_d),
                     offsets = (block_q , 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
                     block_shape = (BLOCK_SIZE_N, D),
