@@ -7,7 +7,7 @@ def silu(x):
 
 @triton.autotune(
     configs=[
-        triton.Config({"BLOCK_SIZE_N": 32}, num_warps=4,num_stages=4),
+        triton.Config({"BLOCK_SIZE_N": 16}, num_warps=4,num_stages=4),
     ],
     key=["N"],
 )

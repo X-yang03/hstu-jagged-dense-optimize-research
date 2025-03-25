@@ -52,7 +52,7 @@ class FusedHSTUOp(torch.autograd.Function):
         sum_N, _ = grad_output.shape
         
         grad_output = grad_output.view(sum_N, head, (dim - pad_len)).permute(1, 0, 2).contiguous()
-        print("grad",grad_output[0,0,:])
+        #print("grad",grad_output[0,0,:])
 
         if pad_len != 0:
             grad_output = F.pad(grad_output, (0, pad_len), "constant", 0)
@@ -61,18 +61,26 @@ class FusedHSTUOp(torch.autograd.Function):
            grad_output, q, k, v, rab, attn_mask, head, dim, n, x_offsets
         )
 
-        print("test q nan:", torch.isnan(grad_q).any())
-        print("test k nan:", torch.isnan(grad_k).any())
-        print("test v nan:", torch.isnan(grad_v).any())
-        if(torch.isnan(grad_q).any()):
-            print(grad_q)
-        if(torch.isnan(grad_k).any()):
-            print(grad_k)
-            nan_indices = torch.isnan(grad_k).nonzero()
-            print(nan_indices)
-            print(x_offsets)
-        if(torch.isnan(grad_v).any()):
-            print(grad_v)
+        # print("test q nan:", torch.isnan(grad_q).any())
+        # print("test k nan:", torch.isnan(grad_k).any())
+        # print("test v nan:", torch.isnan(grad_v).any())
+        # if(torch.isnan(grad_q).any()):
+        #     print(grad_q)
+        # if(torch.isnan(grad_k).any()):
+        #     #print(grad_k)
+        #     nan_indices = torch.isnan(grad_k).nonzero()
+        #     print(nan_indices)
+        #     print(x_offsets)
+        #     print("dk340:", grad_k[0,340,:])
+        #     print("dk341:",grad_k[0,341,:])
+        #     torch.save(q, "q.pt")
+        #     torch.save(k, "k.pt")
+        #     torch.save(v, "v.pt")
+        #     torch.save(rab, "rab.pt")
+        #     torch.save(attn_mask, "attn_mask.pt")
+        #     torch.save(x_offsets, "x_offsets.pt")
+        #     torch.save(grad_output, "grad_output.pt")
+        #     print("config: head: {}, dim: {}, n: {}".format(head, dim, n))
         if pad_len != 0:
             grad_q = grad_q.permute(1, 0, 2)[:, :, :(-pad_len)].contiguous().view(sum_N, head*(dim - pad_len))
             grad_k = grad_k.permute(1, 0, 2)[:, :, :(-pad_len)].contiguous().view(sum_N, head*(dim - pad_len))
