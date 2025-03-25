@@ -1,3 +1,14 @@
+# Purpose
+This repository is forked from `facebookresearch/generative-recommenders`. When trying to profilling GR, I find it spend too much time on jagged-dense transformation, so I try to optimize this time-consuming step to make training process faster. 
+
+You could see my work in ./fused_jagged_hstu/fused_hstu_op. I implemented both forward and backward method for Φ(Q @ K.T + rab) @ V. This operator takes jagged Q K V as input and compute jagged attn_out in a better way, which doesnt need to transform jagged tensor to dense tensor.
+
+## Operator benchmark
+```bash
+python fused_full_benchmark.py
+```
+
+
 # Generative Recommenders
 
 Repository hosting code for ``Actions Speak Louder than Words: Trillion-Parameter Sequential Transducers for Generative Recommendations`` (https://arxiv.org/abs/2402.17152, ICML'24) and related code, where we demonstrate that the ubiquitously used classical deep learning recommendation paradigm (DLRMs) can be reformulated as a generative modeling problem (Generative Recommenders or GRs) to overcome known compute scaling bottlenecks, propose efficient algorithms such as HSTU and M-FALCON to accelerate training and inference for large-scale sequential models by 10x-1000x, and demonstrate scaling law for the first-time in deployed, billion-user scale recommendation systems.

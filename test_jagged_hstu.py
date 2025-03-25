@@ -1,11 +1,9 @@
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
-from fused_jagged_hstu import fused_jagged_hstu
 import random
 import fbgemm_gpu
-import torch.profiler
-from fused_hstu_op import FusedHSTUOp
+from fused_jagged_hstu.fused_hstu_op import FusedHSTUOp
 
 def get_input(sum_N, head, d, B, n):
     q = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
@@ -62,6 +60,7 @@ for i in range(1, B+1):
     x_offsets.append(x_offsets[-1] + rand_seq_len) # 生成一个长度为B的序列，每个元素为0-1024之间的随机数
 x_offsets = torch.tensor(x_offsets, device="cuda") # 转换为tensor
 
+n += 11  #符合原本hstu的流程
 head, d = 8 , 25
 sum_N = int(x_offsets[-1])
 
@@ -83,56 +82,42 @@ print('===========================================================')
 
 print('start benchmark')
 
-einsum_forward_time = []
-fused_forward_time = []
-einsum_backward_time = []
-fused_backward_time = []
+avg_forward_diff = []
+max_forward_diff = []
+
+avg_backward_diff = []
+max_backward_diff = []
 
 test_num = 10
 for _ in tqdm(range(test_num)):
     q, k, v, q1, k1, v1, rab, attn_mask = get_input(sum_N, head, d, B, n)
 
-    start_event = torch.cuda.Event(enable_timing=True)
-    end_event = torch.cuda.Event(enable_timing=True)
-
-
-    start_event.record()
     einsum_attn = origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
-    end_event.record()
-    torch.cuda.synchronize()
-    einsum_forward_time.append(start_event.elapsed_time(end_event))
 
-    start_event.record()
     fused_attn = FusedHSTUOp.apply(q1, k1, v1, rab, attn_mask, head, d, n, x_offsets)
-    end_event.record()
-    torch.cuda.synchronize()
-    fused_forward_time.append(start_event.elapsed_time(end_event))
 
+    print("forward pass check: ", torch.allclose(einsum_attn, fused_attn, atol=1e-4))
+    avg_forward_diff.append(torch.mean(torch.abs(einsum_attn - fused_attn)))
+    max_forward_diff.append(torch.max(torch.abs(einsum_attn - fused_attn)))
+    
     loss = einsum_attn.sum()
-    start_event.record()
+    
     loss.backward()
-    end_event.record()
-    torch.cuda.synchronize()
-    einsum_backward_time.append(start_event.elapsed_time(end_event))
-
+    
     loss1 = fused_attn.sum()
-    start_event.record()
+    
     loss1.backward()
-    end_event.record()
-    torch.cuda.synchronize()
-    fused_backward_time.append(start_event.elapsed_time(end_event))
 
-print("avg einsum forward time: ", sum(einsum_forward_time) / len(einsum_forward_time))
-print("avg fused forward time: ", sum(fused_forward_time) / len(fused_forward_time))
-print("avg einsum backward time: ", sum(einsum_backward_time) / len(einsum_backward_time))
-print("avg fused backward time: ", sum(fused_backward_time) / len(fused_backward_time))
+    avg_backward_diff.append(torch.mean(torch.abs(q.grad - q1.grad)))
+    avg_backward_diff.append(torch.mean(torch.abs(k.grad - k1.grad)))
+    avg_backward_diff.append(torch.mean(torch.abs(v.grad - v1.grad)))
 
-print('===========================================================')
+    max_backward_diff.append(torch.max(torch.abs(q.grad - q1.grad)))
+    max_backward_diff.append(torch.max(torch.abs(k.grad - k1.grad)))
+    max_backward_diff.append(torch.max(torch.abs(v.grad - v1.grad)))
+    
+print("avg_forward_diff: ", sum(avg_forward_diff)/len(avg_forward_diff))
+print("max_forward_diff: ", max(max_forward_diff))
 
-speedup_forward = [einsum_forward_time[i] / fused_forward_time[i] for i in range(len(einsum_forward_time))]
-speedup_backward = [einsum_backward_time[i] / fused_backward_time[i] for i in range(len(einsum_backward_time))]
-
-print("avg forward speedup: ", sum(speedup_forward) / len(speedup_forward))
-print("avg backward speedup: ", sum(speedup_backward) / len(speedup_backward))
-print('===========================================================')
-print('benchmark done')
+print("avg_backward_diff: ", sum(avg_backward_diff)/len(avg_backward_diff))
+print("max_backward_diff: ", max(max_backward_diff))
