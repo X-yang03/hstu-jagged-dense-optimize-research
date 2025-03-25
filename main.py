@@ -62,18 +62,18 @@ def mp_train_fn(
         logging.info(f"Rank {rank}: loading gin config from {gin_config_file}")
         gin.parse_config_file(gin_config_file)
 
-    train_fn(rank, world_size, master_port)
+    train_fn(rank, world_size, master_port)  #train.py
 
 
 def _main(argv) -> None:  # pyre-ignore [2]
     world_size = torch.cuda.device_count()
 
     mp.set_start_method("forkserver")
-    mp.spawn(
+    mp.spawn(  #创建进程，分配任务
         mp_train_fn,
-        args=(world_size, FLAGS.master_port, FLAGS.gin_config_file),
-        nprocs=world_size,
-        join=True,
+        args=(world_size, FLAGS.master_port, FLAGS.gin_config_file), #world_size为进程数量，master_port为端口号
+        nprocs=world_size, #进程数量 = 设备数量
+        join=True, #等待所有进程结束
     )
 
 

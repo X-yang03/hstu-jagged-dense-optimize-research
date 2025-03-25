@@ -1,10 +1,13 @@
 import torch
 import torch.nn.functional as F
 import triton
-from fused_jagged_hstu import fused_jagged_hstu
-from fused_jagged_hstu_backward import fused_jagged_hstu_backward
+from fused_jagged_hstu.fused_jagged_hstu import fused_jagged_hstu
+from fused_jagged_hstu.fused_jagged_hstu_backward import fused_jagged_hstu_backward
 
 class FusedHSTUOp(torch.autograd.Function):
+
+
+
     @staticmethod
     def forward(ctx, q, k, v, rab, attn_mask, head, dim, n, x_offsets):
         sum_N, _ = q.shape
@@ -49,6 +52,7 @@ class FusedHSTUOp(torch.autograd.Function):
         sum_N, _ = grad_output.shape
         
         grad_output = grad_output.view(sum_N, head, (dim - pad_len)).permute(1, 0, 2).contiguous()
+        print("grad",grad_output[0,0,:])
 
         if pad_len != 0:
             grad_output = F.pad(grad_output, (0, pad_len), "constant", 0)
@@ -56,6 +60,19 @@ class FusedHSTUOp(torch.autograd.Function):
         grad_q, grad_k, grad_v = fused_jagged_hstu_backward(
            grad_output, q, k, v, rab, attn_mask, head, dim, n, x_offsets
         )
+
+        print("test q nan:", torch.isnan(grad_q).any())
+        print("test k nan:", torch.isnan(grad_k).any())
+        print("test v nan:", torch.isnan(grad_v).any())
+        if(torch.isnan(grad_q).any()):
+            print(grad_q)
+        if(torch.isnan(grad_k).any()):
+            print(grad_k)
+            nan_indices = torch.isnan(grad_k).nonzero()
+            print(nan_indices)
+            print(x_offsets)
+        if(torch.isnan(grad_v).any()):
+            print(grad_v)
         if pad_len != 0:
             grad_q = grad_q.permute(1, 0, 2)[:, :, :(-pad_len)].contiguous().view(sum_N, head*(dim - pad_len))
             grad_k = grad_k.permute(1, 0, 2)[:, :, :(-pad_len)].contiguous().view(sum_N, head*(dim - pad_len))
@@ -65,4 +82,5 @@ class FusedHSTUOp(torch.autograd.Function):
             grad_k = grad_k.permute(1, 0, 2).contiguous().view(sum_N, head*dim)
             grad_v = grad_v.permute(1, 0, 2).contiguous().view(sum_N, head*dim)
 
+        
         return grad_q, grad_k, grad_v, None, None, None, None, None, None

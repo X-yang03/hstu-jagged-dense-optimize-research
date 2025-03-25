@@ -42,6 +42,7 @@ from generative_recommenders.modeling.similarity_module import (
 )
 from generative_recommenders.rails.similarities.module import SimilarityModule
 
+from fused_jagged_hstu.fused_hstu_op import FusedHSTUOp
 
 TIMESTAMPS_KEY = "timestamps"
 
@@ -193,6 +194,35 @@ def _hstu_attention_maybe_from_cache(  #在rel_bias模式下计算注意力输�
             .view(B, n, -1)
         )
     else: #q k 原本是[sum_N, h*dqk]，需要转换为padded形式, 变为[B, n, h*dqk]
+    
+        if all_timestamps is not None:
+            return FusedHSTUOp.apply(
+                q,
+                k,
+                v,
+                rel_attn_bias(all_timestamps).unsqueeze(1),
+                invalid_attn_mask.unsqueeze(0).unsqueeze(0),
+                num_heads,
+                attention_dim,
+                n,
+                x_offsets,
+            ), None, None
+        else:
+            rab = torch.zeros(B, 1, n, n, device=q.device)
+            attn_output = FusedHSTUOp.apply(
+                q,
+                k,
+                v,
+                rab,
+                invalid_attn_mask.unsqueeze(0).unsqueeze(0),
+                num_heads,
+                attention_dim,
+                n,
+                x_offsets,
+            )
+            print('test nan:',torch.isnan(attn_output).any())
+
+            return attn_output, None, None
         padded_q = torch.ops.fbgemm.jagged_to_padded_dense(  #根据x_offsets的位置信息，将q和k转换为padded形式，统一为长为n的序列， [B, n, num_heads*dqk]
             values=q, offsets=[x_offsets], max_lengths=[n], padding_value=0.0
         )
@@ -325,7 +355,7 @@ class SequentialTransductionUnitJagged(torch.nn.Module):  #单层STU
             cached_v, cached_q, cached_k, cached_outputs = cache
 
         normed_x = self._norm_input(x)
-        print(f'x: {x.size()}, uvqk:{self._uvqk.size()}, x_offsets: {x_offsets.size()},delta_x_offsets: {delta_x_offsets}')
+        #print(f'x: {x.size()}, uvqk:{self._uvqk.size()}, x_offsets: {x_offsets.size()},delta_x_offsets: {delta_x_offsets}')
 
         if self._linear_config == "uvqk":
             batched_mm_output = torch.mm(normed_x, self._uvqk)  # f(x) = Wx,  [sum_N, D] * [D, 2*h*dv + 2*h*dqk] = [sum_N, 2*h*dv + 2*h*dqk]
