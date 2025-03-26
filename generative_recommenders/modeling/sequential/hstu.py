@@ -195,34 +195,34 @@ def _hstu_attention_maybe_from_cache(  #在rel_bias模式下计算注意力输�
         )
     else: #q k 原本是[sum_N, h*dqk]，需要转换为padded形式, 变为[B, n, h*dqk]
     
-        # if all_timestamps is not None:
-        #     return FusedHSTUOp.apply(
-        #         q,
-        #         k,
-        #         v,
-        #         rel_attn_bias(all_timestamps).unsqueeze(1),
-        #         invalid_attn_mask.unsqueeze(0).unsqueeze(0),
-        #         num_heads,
-        #         attention_dim,
-        #         n,
-        #         x_offsets,
-        #     ), None, None
-        # else:
-        #     rab = torch.zeros(B, 1, n, n, device=q.device)
-        #     attn_output = FusedHSTUOp.apply(
-        #         q,
-        #         k,
-        #         v,
-        #         rab,
-        #         invalid_attn_mask.unsqueeze(0).unsqueeze(0),
-        #         num_heads,
-        #         attention_dim,
-        #         n,
-        #         x_offsets,
-        #     )
-        #     print('test nan:',torch.isnan(attn_output).any())
+        if all_timestamps is not None:
+            return FusedHSTUOp.apply(
+                q,
+                k,
+                v,
+                rel_attn_bias(all_timestamps).unsqueeze(1),
+                invalid_attn_mask.unsqueeze(0).unsqueeze(0),
+                num_heads,
+                attention_dim,
+                n,
+                x_offsets,
+            ), None, None
+        else:
+            rab = torch.zeros(B, 1, n, n, device=q.device)
+            attn_output = FusedHSTUOp.apply(
+                q,
+                k,
+                v,
+                rab,
+                invalid_attn_mask.unsqueeze(0).unsqueeze(0),
+                num_heads,
+                attention_dim,
+                n,
+                x_offsets,
+            )
+            print('test nan:',torch.isnan(attn_output).any())
 
-        #     return attn_output, None, None
+            return attn_output, None, None
         padded_q = torch.ops.fbgemm.jagged_to_padded_dense(  #根据x_offsets的位置信息，将q和k转换为padded形式，统一为长为n的序列， [B, n, num_heads*dqk]
             values=q, offsets=[x_offsets], max_lengths=[n], padding_value=0.0
         )
