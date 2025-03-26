@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 import random
@@ -80,13 +81,15 @@ print('warm up done')
 
 print('===========================================================')
 
-print('start benchmark')
+print('start test')
 
 avg_forward_diff = []
 max_forward_diff = []
+avg_forward = []
 
 avg_backward_diff = []
 max_backward_diff = []
+avg_backward = []
 
 test_num = 10
 for _ in tqdm(range(test_num)):
@@ -96,15 +99,24 @@ for _ in tqdm(range(test_num)):
 
     fused_attn = FusedHSTUOp.apply(q1, k1, v1, rab, attn_mask, head, d, n, x_offsets)
 
-    print("forward pass check: ", torch.allclose(einsum_attn, fused_attn, atol=1e-4))
+    #print("forward pass check: ", torch.allclose(einsum_attn, fused_attn, atol=1e-4))
+    assert(torch.allclose(einsum_attn, fused_attn, atol=1e-4))
     avg_forward_diff.append(torch.mean(torch.abs(einsum_attn - fused_attn)))
     max_forward_diff.append(torch.max(torch.abs(einsum_attn - fused_attn)))
+    avg_forward.append(torch.abs(torch.mean(einsum_attn)))
+
+    y_true = torch.randn_like(einsum_attn)
     
-    loss = einsum_attn.sum()
+    criterion = nn.CrossEntropyLoss()
+    criterion1 = nn.CrossEntropyLoss()
+    loss = criterion(einsum_attn, y_true)
+
+    #loss = einsum_attn.sum()
+
     
     loss.backward()
     
-    loss1 = fused_attn.sum()
+    loss1 = criterion1(fused_attn, y_true)
     
     loss1.backward()
 
@@ -115,9 +127,17 @@ for _ in tqdm(range(test_num)):
     max_backward_diff.append(torch.max(torch.abs(q.grad - q1.grad)))
     max_backward_diff.append(torch.max(torch.abs(k.grad - k1.grad)))
     max_backward_diff.append(torch.max(torch.abs(v.grad - v1.grad)))
-    
+
+    avg_backward.append(torch.abs(torch.mean(q.grad)))
+    avg_backward.append(torch.abs(torch.mean(k.grad)))
+    avg_backward.append(torch.abs(torch.mean(v.grad)))
+
+forward_diff_ratio = [avg_forward_diff[i]/avg_forward[i] for i in range(len(avg_forward_diff))]
 print("avg_forward_diff: ", sum(avg_forward_diff)/len(avg_forward_diff))
 print("max_forward_diff: ", max(max_forward_diff))
+print("diff ratio avg：{}, max: {}".format(sum(forward_diff_ratio)/len(forward_diff_ratio), max(forward_diff_ratio)))
 
+backward_diff_ratio = [avg_backward_diff[i]/avg_backward[i] for i in range(len(avg_backward_diff))]
 print("avg_backward_diff: ", sum(avg_backward_diff)/len(avg_backward_diff))
 print("max_backward_diff: ", max(max_backward_diff))
+print("diff ratio avg：{}, max: {}".format(sum(backward_diff_ratio)/len(backward_diff_ratio), max(backward_diff_ratio)))

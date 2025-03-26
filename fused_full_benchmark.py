@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+import torch.nn as nn
 from tqdm import tqdm
 import random
 import fbgemm_gpu
@@ -107,14 +108,18 @@ for _ in tqdm(range(test_num)):
     torch.cuda.synchronize()
     fused_forward_time.append(start_event.elapsed_time(end_event))
 
-    loss = einsum_attn.sum()
+    attn_true = torch.randn_like(einsum_attn)
+
+    criterion = nn.CrossEntropyLoss()
+    loss = criterion(einsum_attn, attn_true)
     start_event.record()
     loss.backward()
     end_event.record()
     torch.cuda.synchronize()
     einsum_backward_time.append(start_event.elapsed_time(end_event))
 
-    loss1 = fused_attn.sum()
+    criterion1 = nn.CrossEntropyLoss()
+    loss1 = criterion1(fused_attn, attn_true)
     start_event.record()
     loss1.backward()
     end_event.record()
