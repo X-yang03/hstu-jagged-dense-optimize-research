@@ -44,7 +44,6 @@ def fused_backward_kernel(
         d_v = tl.zeros((BLOCK_SIZE_N, D), dtype=tl.float32)
 
         mask_kv = (block_kv + tl.arange(0, BLOCK_SIZE_N))[:,None] < len_sample
-        jagged = False
 
         k_ptrs = K_ptr + pid_h * stride_kh + start * stride_kn +\
                     block_kv * stride_kn + \

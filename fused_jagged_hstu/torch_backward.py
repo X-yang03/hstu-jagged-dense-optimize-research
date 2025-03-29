@@ -5,20 +5,25 @@ import random
 import fbgemm_gpu
 from fused_jagged_hstu import fused_jagged_hstu
 from fused_jagged_hstu_backward import fused_jagged_hstu_backward
-import seaborn as sns
-import matplotlib.pyplot as plt
 
 
 def get_input(sum_N, head, d, B, n):
     q = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
     k = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
     v = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
-    rab = torch.randn(B, 1, n, n, device="cuda")
+    rab = torch.randn(B, 1, n, n, requires_grad=True, device="cuda")
+
+    q1 = q.clone().detach().requires_grad_(True)
+    k1 = k.clone().detach().requires_grad_(True)
+    v1 = v.clone().detach().requires_grad_(True)
+    rab1 = rab.clone().detach().requires_grad_(True)
+    
     # 生成一个下三角矩阵
     attn_mask = torch.tril(torch.ones((n, n), device='cuda:0'))
     # 调整形状为 (1, 1, n, n)
     attn_mask = attn_mask.view(1, 1, n, n) 
-    return q, k, v, rab, attn_mask
+    return q, k, v, rab,  q1, k1, v1, rab1, attn_mask
+
 
 def origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets):
     padded_q = torch.ops.fbgemm.jagged_to_padded_dense(  #根据x_offsets的位置信息，将q和k转换为padded形式，统一为长为n的序列， [B, n, num_heads*dqk]
@@ -190,7 +195,7 @@ class CustomAttentionFunction(torch.autograd.Function):
         grad_attn_mask = None
 
         # 返回梯度顺序需与 forward 的输入参数一致
-        return grad_q, grad_k, grad_v, None, None, None, None, None, None, None
+        return grad_q, grad_k, grad_v, grad_rab, None, None, None, None, None, None
 
 # 使用示例
 seq_len = [120, 60, 250]
@@ -206,11 +211,8 @@ x_offsets = torch.tensor(x_offsets, device="cuda") # 转换为tensor
 head, d = 2 , 32
 sum_N = int(x_offsets[-1])
 
-q, k, v, rab, attn_mask = get_input(sum_N, head, d, B, n)
 
-q1 = q.clone().detach().requires_grad_(True)
-k1 = k.clone().detach().requires_grad_(True)
-v1 = v.clone().detach().requires_grad_(True)
+q, k, v, rab, q1, k1, v1, rab1, attn_mask = get_input(sum_N, head, d, B, n)
 
 #rab2 = rab.clone().detach().requires_grad_(True)
 #attn_mask2 = attn_mask.clone().detach().requires_grad_(True)
@@ -223,7 +225,7 @@ loss = output.sum()
 loss.backward()
 #print(q.grad[0, :])
 
-output1 = origin_einsum_attn(q1, k1, v1, rab, attn_mask, B, n, head, d, x_offsets)
+output1 = origin_einsum_attn(q1, k1, v1, rab1, attn_mask, B, n, head, d, x_offsets)
 
 loss1 = output1.sum()
 #print('diff between two forward: ', (output - output1).abs().mean(), (output - output1).abs().max())
@@ -232,5 +234,6 @@ loss1.backward()
 print('diff between two q backward: ', (q.grad - q1.grad).abs().mean(), (q.grad - q1.grad).abs().max())
 print('diff between two k backward: ', (k.grad - k1.grad).abs().mean(), (k.grad - k1.grad).abs().max())
 print('diff between two v backward: ', (v.grad - v1.grad).abs().mean(), (v.grad - v1.grad).abs().max())
+print('diff between two rab: ', (rab.grad - rab1.grad).abs().mean(), (rab.grad - rab1.grad).abs().max())
 
 #print(rab.grad.shape) # torch.Size([2, 4, 10, 10])

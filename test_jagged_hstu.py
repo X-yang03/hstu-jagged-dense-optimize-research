@@ -3,23 +3,24 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 import random
-import fbgemm_gpu
 from fused_jagged_hstu.fused_hstu_op import FusedHSTUOp
 
 def get_input(sum_N, head, d, B, n):
     q = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
     k = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
     v = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
+    rab = torch.randn(B, 1, n, n, requires_grad=True, device="cuda")
 
     q1 = q.clone().detach().requires_grad_(True)
     k1 = k.clone().detach().requires_grad_(True)
     v1 = v.clone().detach().requires_grad_(True)
-    rab = torch.randn(B, 1, n, n, device="cuda")
+    rab1 = rab.clone().detach().requires_grad_(True)
+    
     # 生成一个下三角矩阵
     attn_mask = torch.tril(torch.ones((n, n), device='cuda:0'))
     # 调整形状为 (1, 1, n, n)
     attn_mask = attn_mask.view(1, 1, n, n) 
-    return q, k, v, q1, k1, v1, rab, attn_mask
+    return q, k, v, rab,  q1, k1, v1, rab1, attn_mask
 
 def origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets):
     padded_q = torch.ops.fbgemm.jagged_to_padded_dense(  #根据x_offsets的位置信息，将q和k转换为padded形式，统一为长为n的序列， [B, n, num_heads*dqk]
@@ -53,16 +54,17 @@ seq_len = [128, 120, 256, 260, 512, 510, 1024, 1020, 100, 200, 300, 400]
 max_seq = 200
 min_seq = 100
 n = 0
-B = 20
+B = 128
 x_offsets = [0]
 for i in range(1, B+1):
-    rand_seq_len = random.choice(seq_len)
+    #rand_seq_len = random.choice(seq_len)
+    rand_seq_len = random.randint(min_seq, max_seq)
     n = max(n, rand_seq_len)
     x_offsets.append(x_offsets[-1] + rand_seq_len) # 生成一个长度为B的序列，每个元素为0-1024之间的随机数
 x_offsets = torch.tensor(x_offsets, device="cuda") # 转换为tensor
 
 n += 11  #符合原本hstu的流程
-head, d = 8 , 25
+head, d = 2 , 25
 sum_N = int(x_offsets[-1])
 
 print('benchmark config: sum_N: {}, head: {}, d: {}, B: {}, n: {}'.format(sum_N, head, d, B, n))
@@ -74,9 +76,9 @@ print('===========================================================')
 
 print('warm up')
 for _ in tqdm(range(3)):
-    q, k, v, q1, k1, v1, rab, attn_mask = get_input(sum_N, head, d, B, n)
+    q, k, v, rab, q1, k1, v1, rab1, attn_mask = get_input(sum_N, head, d, B, n)
     warmup_einsum_attn = origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
-    warmup_fused_attn = FusedHSTUOp.apply(q1, k1, v1, rab, attn_mask, head, d, n, x_offsets)
+    warmup_fused_attn = FusedHSTUOp.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
 print('warm up done')
 
 print('===========================================================')
@@ -93,11 +95,11 @@ avg_backward = []
 
 test_num = 10
 for _ in tqdm(range(test_num)):
-    q, k, v, q1, k1, v1, rab, attn_mask = get_input(sum_N, head, d, B, n)
+    q, k, v, rab, q1, k1, v1, rab1, attn_mask = get_input(sum_N, head, d, B, n)
 
     einsum_attn = origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
 
-    fused_attn = FusedHSTUOp.apply(q1, k1, v1, rab, attn_mask, head, d, n, x_offsets)
+    fused_attn = FusedHSTUOp.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
 
     #print("forward pass check: ", torch.allclose(einsum_attn, fused_attn, atol=1e-4))
     assert(torch.allclose(einsum_attn, fused_attn, atol=1e-4))
@@ -123,14 +125,17 @@ for _ in tqdm(range(test_num)):
     avg_backward_diff.append(torch.mean(torch.abs(q.grad - q1.grad)))
     avg_backward_diff.append(torch.mean(torch.abs(k.grad - k1.grad)))
     avg_backward_diff.append(torch.mean(torch.abs(v.grad - v1.grad)))
+    avg_backward_diff.append(torch.mean(torch.abs(rab.grad - rab1.grad)))
 
     max_backward_diff.append(torch.max(torch.abs(q.grad - q1.grad)))
     max_backward_diff.append(torch.max(torch.abs(k.grad - k1.grad)))
     max_backward_diff.append(torch.max(torch.abs(v.grad - v1.grad)))
+    max_backward_diff.append(torch.max(torch.abs(rab.grad - rab1.grad)))
 
     avg_backward.append(torch.abs(torch.mean(q.grad)))
     avg_backward.append(torch.abs(torch.mean(k.grad)))
     avg_backward.append(torch.abs(torch.mean(v.grad)))
+    avg_backward.append(torch.abs(torch.mean(rab.grad)))
 
 forward_diff_ratio = [avg_forward_diff[i]/avg_forward[i] for i in range(len(avg_forward_diff))]
 print("avg_forward_diff: ", sum(avg_forward_diff)/len(avg_forward_diff))

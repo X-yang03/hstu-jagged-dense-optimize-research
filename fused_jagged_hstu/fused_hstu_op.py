@@ -57,7 +57,7 @@ class FusedHSTUOp(torch.autograd.Function):
         if pad_len != 0:
             grad_output = F.pad(grad_output, (0, pad_len), "constant", 0)
 
-        grad_q, grad_k, grad_v = fused_jagged_hstu_backward(
+        grad_q, grad_k, grad_v, grad_rab = fused_jagged_hstu_backward(
            grad_output, q, k, v, rab, attn_mask, head, dim, n, x_offsets
         )
 
@@ -91,4 +91,4 @@ class FusedHSTUOp(torch.autograd.Function):
             grad_v = grad_v.permute(1, 0, 2).contiguous().view(sum_N, head*dim)
 
         
-        return grad_q, grad_k, grad_v, None, None, None, None, None, None
+        return grad_q, grad_k, grad_v, grad_rab, None, None, None, None, None

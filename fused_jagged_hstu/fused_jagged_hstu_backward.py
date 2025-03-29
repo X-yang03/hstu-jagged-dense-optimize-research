@@ -16,7 +16,7 @@ def silu(x):
 @triton.jit
 def fused_backward_kernel(
     Q_ptr, K_ptr, V_ptr, rab_ptr,
-    dQ_ptr, dK_ptr, dV_ptr, 
+    dQ_ptr, dK_ptr, dV_ptr, dRab_ptr,
     dOut_ptr,
     attn_mask_ptr,
     x_offsets_ptr,
@@ -90,6 +90,14 @@ def fused_backward_kernel(
                     block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
                     order = (0, 1)
                 )
+                drab_ptrs = tl.make_block_ptr(
+                    base = dRab_ptr + pid_b * stride_rab_b,
+                    shape = (N, N),
+                    strides = (stride_rab_n, stride_rab_m),
+                    offsets = (block_q , block_kv ),
+                    block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
+                    order = (0, 1)
+                )
                 rab = tl.load(rab_ptrs)
                 
                 if block_q + BLOCK_SIZE_N <= len_sample:
@@ -155,7 +163,9 @@ def fused_backward_kernel(
                     d_v += tl.dot(qk_normalized.T, d_o, input_precision = "ieee")
                     #mask_qk @ d_o  (m, n)@(n, d) -> (m, d)
 
-                    d_qk = d_qk * d_silu_qk
+                    d_qk = d_qk * d_silu_qk  #此时计算出rab的梯度
+
+                    tl.store(drab_ptrs, d_qk)
 
                     d_q += tl.dot(d_qk, k, input_precision = "ieee") 
                     # (BLOCK_SIZE_N, BLOCK_SIZE_N) * (BLOCK_SIZE_N, D) -> (BLOCK_SIZE_N, D)
@@ -216,6 +226,8 @@ def fused_backward_kernel(
 
                     d_qk = d_qk * d_silu_qk
 
+                    tl.store(drab_ptrs, d_qk)
+
                     d_q += tl.dot(d_qk, k, input_precision = "ieee") 
                     # (BLOCK_SIZE_N, BLOCK_SIZE_N) * (BLOCK_SIZE_N, D) -> (BLOCK_SIZE_N, D)
 
@@ -256,6 +268,14 @@ def fused_backward_kernel(
             for block_q in range(block_kv, len_sample, BLOCK_SIZE_N):  # load Q_i, dQ_i, O_i, dO_i, d_attn_i
                 rab_ptrs = tl.make_block_ptr(  # rab shape : (B,1,N,N)
                     base = rab_ptr + pid_b * stride_rab_b,
+                    shape = (N, N),
+                    strides = (stride_rab_n, stride_rab_m),
+                    offsets = (block_q , block_kv ),
+                    block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
+                    order = (0, 1)
+                )
+                drab_ptrs = tl.make_block_ptr(
+                    base = dRab_ptr + pid_b * stride_rab_b,
                     shape = (N, N),
                     strides = (stride_rab_n, stride_rab_m),
                     offsets = (block_q , block_kv ),
@@ -329,6 +349,8 @@ def fused_backward_kernel(
 
                     d_qk = d_qk * d_silu_qk
 
+                    tl.store(drab_ptrs, d_qk)
+
                     d_q += tl.dot(d_qk, k, input_precision = "ieee") 
                     # (BLOCK_SIZE_N, BLOCK_SIZE_N) * (BLOCK_SIZE_N, D) -> (BLOCK_SIZE_N, D)
 
@@ -390,6 +412,8 @@ def fused_backward_kernel(
 
                     d_qk = d_qk * d_silu_qk
 
+                    tl.store(drab_ptrs, d_qk)
+
                     d_q += tl.dot(d_qk, k, input_precision = "ieee") 
                     # (BLOCK_SIZE_N, BLOCK_SIZE_N) * (BLOCK_SIZE_N, D) -> (BLOCK_SIZE_N, D)
 
@@ -413,12 +437,13 @@ def fused_jagged_hstu_backward(d_attn, q, k, v, rab, attn_mask, head, dim, n, x_
     d_q = torch.zeros_like(q)
     d_k = torch.zeros_like(k)
     d_v = torch.zeros_like(v)
+    d_rab = torch.zeros_like(rab)
 
     grid = (head, B)
 
     fused_backward_kernel[grid](
         q, k, v, rab,
-        d_q, d_k, d_v,
+        d_q, d_k, d_v, d_rab,
         d_attn ,
         attn_mask,
         x_offsets,
@@ -430,7 +455,7 @@ def fused_jagged_hstu_backward(d_attn, q, k, v, rab, attn_mask, head, dim, n, x_
         attn_mask.stride(2), attn_mask.stride(3),
         d_attn.stride(0), d_attn.stride(1), d_attn.stride(2),
     )
-    return d_q, d_k, d_v
+    return d_q, d_k, d_v, d_rab
 
 
 
