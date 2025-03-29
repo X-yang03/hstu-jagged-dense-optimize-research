@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 import random
+import fbgemm_gpu
 from fused_jagged_hstu.fused_hstu_op import FusedHSTUOp
 
 def get_input(sum_N, head, d, B, n):
