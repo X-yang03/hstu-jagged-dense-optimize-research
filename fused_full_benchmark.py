@@ -80,7 +80,11 @@ print('warm up')
 for _ in tqdm(range(3)):
     q, k, v, rab, q1, k1, v1, rab1, attn_mask = get_input(sum_N, head, d, B, n)
     warmup_einsum_attn = origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
+    loss = warmup_einsum_attn.sum()
+    loss.backward()
     warmup_fused_attn = FusedHSTUOp.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
+    loss1 = warmup_fused_attn.sum()
+    loss1.backward()
 print('warm up done')
 
 print('===========================================================')
