@@ -90,5 +90,5 @@ class FusedHSTUOp(torch.autograd.Function):
             grad_k = grad_k.permute(1, 0, 2).contiguous().view(sum_N, head*dim)
             grad_v = grad_v.permute(1, 0, 2).contiguous().view(sum_N, head*dim)
 
-        
+
         return grad_q, grad_k, grad_v, grad_rab, None, None, None, None, None

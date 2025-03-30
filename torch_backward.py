@@ -3,8 +3,9 @@ import torch.nn.functional as F
 from tqdm import tqdm
 import random
 import fbgemm_gpu
-from fused_jagged_hstu import fused_jagged_hstu
-from fused_jagged_hstu_backward import fused_jagged_hstu_backward
+#from fused_jagged_hstu import fused_jagged_hstu
+#from fused_jagged_hstu_backward import fused_jagged_hstu_backward
+from fused_jagged_hstu.fused_hstu_op import FusedHSTUOp
 
 
 def get_input(sum_N, head, d, B, n):
@@ -167,7 +168,7 @@ class CustomAttentionFunction(torch.autograd.Function):
         # ---------------------------------------------------------------
         # 反向步骤 4: 位置偏置 rab 的梯度（若需要）
         grad_rab = grad_qk_attn if rab.requires_grad else None
-
+        #print("shape",grad_rab.shape)
         # ---------------------------------------------------------------
         # 反向步骤 5: einsum("bnhd,bmhd->bhnm") 的梯度
         # 计算对 padded_q 和 padded_k 的梯度
@@ -198,7 +199,7 @@ class CustomAttentionFunction(torch.autograd.Function):
         return grad_q, grad_k, grad_v, grad_rab, None, None, None, None, None, None
 
 # 使用示例
-seq_len = [120, 60, 250]
+seq_len = [60,120,250]
 n = 0
 B = 20
 x_offsets = [0]
@@ -221,7 +222,9 @@ critertion = torch.nn.CrossEntropyLoss()
 critertion1 = torch.nn.CrossEntropyLoss()
 
 # 前向计算
-output = CustomAttentionFunction.apply(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
+#output = CustomAttentionFunction.apply(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
+
+output = FusedHSTUOp.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
 
 y_true =torch.randn_like(output)
 
@@ -232,6 +235,7 @@ loss.backward()
 #print(q.grad[0, :])
 
 output1 = origin_einsum_attn(q1, k1, v1, rab1, attn_mask, B, n, head, d, x_offsets)
+#output1 = FusedHSTUOp.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
 
 loss1 = critertion1(output1, y_true)
 #print('diff between two forward: ', (output - output1).abs().mean(), (output - output1).abs().max())
@@ -240,12 +244,11 @@ loss1.backward()
 print('diff between two q backward: ', (q.grad - q1.grad).abs().mean(), (q.grad - q1.grad).abs().max())
 print('diff between two k backward: ', (k.grad - k1.grad).abs().mean(), (k.grad - k1.grad).abs().max())
 print('diff between two v backward: ', (v.grad - v1.grad).abs().mean(), (v.grad - v1.grad).abs().max())
-print('diff between two rab: ', (rab.grad - rab1.grad).abs().mean(), (rab.grad - rab1.grad).abs().max())
+print('diff between two rab: ', (rab1.grad - rab.grad).abs().mean(), (rab.grad - rab1.grad).abs().max())
 
 
 print("avg rab:", rab.grad.abs().mean())
 print("avg rab1:", rab1.grad.abs().mean())
-print(rab.grad)
-print(rab1.grad)
-print('diff ratio between rab: ',  (rab.grad - rab1.grad).abs().mean()/rab.grad.abs().mean())
-#print(rab.grad.shape) # torch.Size([2, 4, 10, 10])
+
+
+print('diff ratio between rab: ',  (rab1.grad - rab.grad).abs().mean()/rab1.grad.abs().mean())
