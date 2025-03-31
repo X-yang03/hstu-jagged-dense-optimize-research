@@ -6,7 +6,7 @@ import fbgemm_gpu
 #from fused_jagged_hstu import fused_jagged_hstu
 #from fused_jagged_hstu_backward import fused_jagged_hstu_backward
 from fused_jagged_hstu.fused_hstu_op import FusedHSTUOp
-
+from fused_jagged_hstu.fused_simpler_op import FusedHSTUOp_
 
 def get_input(sum_N, head, d, B, n):
     q = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
@@ -211,6 +211,7 @@ x_offsets = torch.tensor(x_offsets, device="cuda") # 转换为tensor
 
 head, d = 2 , 32
 sum_N = int(x_offsets[-1])
+n += 11  #符合原本hstu的流程
 
 
 q, k, v, rab, q1, k1, v1, rab1, attn_mask = get_input(sum_N, head, d, B, n)
@@ -224,7 +225,7 @@ critertion1 = torch.nn.CrossEntropyLoss()
 # 前向计算
 #output = CustomAttentionFunction.apply(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
 
-output = FusedHSTUOp.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
+output = FusedHSTUOp_.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
 
 y_true =torch.randn_like(output)
 

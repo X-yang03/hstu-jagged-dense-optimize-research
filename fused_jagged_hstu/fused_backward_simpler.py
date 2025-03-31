@@ -17,7 +17,7 @@ def silu(x):
 @triton.jit
 def fused_backward_kernel(
     Q_ptr, K_ptr, V_ptr, rab_ptr,
-    dQ_ptr, dK_ptr, dV_ptr, 
+    dQ_ptr, dK_ptr, dV_ptr, dRab_ptr, 
     dOut_ptr,
     attn_mask_ptr,
     x_offsets_ptr,
@@ -26,6 +26,7 @@ def fused_backward_kernel(
     stride_qh, stride_qn, stride_qd,
     stride_vh, stride_vn, stride_vd,
     stride_rab_b, stride_rab_h, stride_rab_n, stride_rab_m,
+    stride_drab_b, stride_drab_h, stride_drab_n, stride_drab_m,
     stride_mask_n, stride_mask_m,
     stride_out_h, stride_out_n, stride_out_d,
     BLOCK_SIZE_N: tl.constexpr
@@ -78,6 +79,11 @@ def fused_backward_kernel(
                 block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
                 order = (0, 1)
             )
+            drab_ptrs = dRab_ptr + pid_b * stride_drab_b + pid_h * stride_drab_h +\
+                    block_q * stride_drab_n + block_kv * stride_drab_m +\
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_drab_n +\
+                    tl.arange(0, BLOCK_SIZE_N)[None, :] * stride_drab_m
+
             rab = tl.load(rab_ptrs)
 
             q_ptrs = Q_ptr + pid_h * stride_qh + start * stride_qn +\
@@ -104,6 +110,7 @@ def fused_backward_kernel(
 
             #计算qk
             qk = tl.dot(q, k.T, input_precision = "ieee") + rab
+
             sigmoid_qk = tl.sigmoid(qk)
             qk_normalized = (qk * sigmoid_qk) / N
 
@@ -130,8 +137,9 @@ def fused_backward_kernel(
 
             d_v += tl.dot(qk_normalized.T, d_o, input_precision = "ieee")
             #mask_qk @ d_o  (m, n)@(n, d) -> (m, d)
-
             d_qk = d_qk * d_silu_qk
+
+            tl.store(drab_ptrs, d_qk, mask= mask & mask_kv.T)
 
             d_q += tl.dot(d_qk, k, input_precision = "ieee") 
             # (BLOCK_SIZE_N, BLOCK_SIZE_N) * (BLOCK_SIZE_N, D) -> (BLOCK_SIZE_N, D)
@@ -139,7 +147,7 @@ def fused_backward_kernel(
             d_k += tl.dot(d_qk.T, q, input_precision = "ieee")
 
             tl.store(dq_ptrs, d_q, mask=mask)
-    
+  
         tl.store(dk_ptrs, d_k, mask=mask_kv)
         tl.store(dv_ptrs, d_v, mask=mask_kv)
         
@@ -147,23 +155,25 @@ def fused_backward_kernel(
 
 def fused_backward_simpler(d_attn, q, k, v, rab, attn_mask, head, dim, n, x_offsets):
     # d_attn : (sum_N, num_heads*d)
-    sum_N, _ = d_attn.shape
-    d_attn = d_attn.view(sum_N, head, dim).permute(1, 0, 2).contiguous()
-    #attn = attn.view(sum_N, head, dim).permute(1, 0, 2).contiguous()
-    q = q.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
-    k = k.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
-    v = v.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d
+    # sum_N, _ = d_attn.shape
+    # d_attn = d_attn.view(sum_N, head, dim).permute(1, 0, 2).contiguous()
+    # #attn = attn.view(sum_N, head, dim).permute(1, 0, 2).contiguous()
+    # q = q.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
+    # k = k.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
+    # v = v.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d
 
     B = x_offsets.shape[0] - 1
     d_q = torch.zeros_like(q)
     d_k = torch.zeros_like(k)
     d_v = torch.zeros_like(v)
 
+    d_rab = torch.zeros((B, head, n, n), dtype=d_attn.dtype, device=d_attn.device)
+
     grid = (head, B)
 
     fused_backward_kernel[grid](
         q, k, v, rab,
-        d_q, d_k, d_v,
+        d_q, d_k, d_v, d_rab,
         d_attn ,
         attn_mask,
         x_offsets,
@@ -172,10 +182,11 @@ def fused_backward_simpler(d_attn, q, k, v, rab, attn_mask, head, dim, n, x_offs
         q.stride(0), q.stride(1), q.stride(2),
         v.stride(0), v.stride(1), v.stride(2),
         rab.stride(0), rab.stride(1), rab.stride(2), rab.stride(3),
+        d_rab.stride(0), d_rab.stride(1), d_rab.stride(2), d_rab.stride(3),
         attn_mask.stride(2), attn_mask.stride(3),
         d_attn.stride(0), d_attn.stride(1), d_attn.stride(2),
     )
-    return d_q, d_k, d_v
+    return d_q, d_k, d_v, d_rab
 
 
 
