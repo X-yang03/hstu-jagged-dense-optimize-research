@@ -69,108 +69,66 @@ def fused_jagged_hstu_kernel(
         q = tl.load(q_block_ptrs)
 
         for block_kv in range(0, block_q + BLOCK_SIZE_N, BLOCK_SIZE_N):  #load  K_j V_j
-            if block_kv + BLOCK_SIZE_N <= len_sample:  #kv块在范围内
-                k_block_ptrs = tl.make_block_ptr(
-                    base=K_ptr + pid_h * stride_kh + start * stride_kn,
-                    shape = (len_sample, D),
-                    strides = (stride_kn, stride_kd),
-                    offsets = (block_kv, 0),
-                    block_shape = (BLOCK_SIZE_N, D),
-                    order = (0, 1)
-                )
+            #当q在范围内时，由于kv<=q，所以kv也在范围内
+            k_block_ptrs = tl.make_block_ptr(
+                base=K_ptr + pid_h * stride_kh + start * stride_kn,
+                shape = (len_sample, D),
+                strides = (stride_kn, stride_kd),
+                offsets = (block_kv, 0),
+                block_shape = (BLOCK_SIZE_N, D),
+                order = (0, 1)
+            )
 
-                v_block_ptrs = tl.make_block_ptr(
-                    base=V_ptr + pid_h * stride_vh + start * stride_vn,
-                    shape = (len_sample, D),
-                    strides = (stride_vn, stride_vd),
-                    offsets = (block_kv, 0),
-                    block_shape = (BLOCK_SIZE_N, D),
-                    order = (0, 1)
-                )
+            v_block_ptrs = tl.make_block_ptr(
+                base=V_ptr + pid_h * stride_vh + start * stride_vn,
+                shape = (len_sample, D),
+                strides = (stride_vn, stride_vd),
+                offsets = (block_kv, 0),
+                block_shape = (BLOCK_SIZE_N, D),
+                order = (0, 1)
+            )
 
-                k = tl.load(k_block_ptrs)
-                v = tl.load(v_block_ptrs)
+            k = tl.load(k_block_ptrs)
+            v = tl.load(v_block_ptrs)
 
-                rab_blk_ptrs = tl.make_block_ptr(  # rab shape : (B,1,N,N)
-                    base = rab_ptr + pid_b * stride_rab_b,
-                    shape = (N, N),
-                    strides = (stride_rab_n, stride_rab_m),
-                    offsets = (block_q , block_kv ),
-                    block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
-                    order = (0, 1)
-                )
-                rab = tl.load(rab_blk_ptrs)
+            rab_blk_ptrs = tl.make_block_ptr(  # rab shape : (B,1,N,N)
+                base = rab_ptr + pid_b * stride_rab_b,
+                shape = (N, N),
+                strides = (stride_rab_n, stride_rab_m),
+                offsets = (block_q , block_kv ),
+                block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
+                order = (0, 1)
+            )
+            rab = tl.load(rab_blk_ptrs)
 
-                qk = silu(tl.dot(q, k.T, input_precision = "ieee") + rab) / N
+            qk = silu(tl.dot(q, k.T, input_precision = "ieee") + rab) / N
 
-                if block_kv == block_q:  #mask的处理方式
-                    # 因为mask是下三角的1矩阵，当block_kv < block_q时，不用做任何处理
-                    # 当block_kv == block_q时，需要将qk与mask相乘
-                        mask_ptrs = tl.make_block_ptr(
-                            base = attn_mask_ptr,
-                            shape = (N, N),
-                            strides = (stride_mask_n, stride_mask_m),
-                            offsets = (block_q , block_kv),
-                            block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
-                            order = (0, 1)
-                        )
-                        attn_mask = tl.load(mask_ptrs)
-                        qk = qk * attn_mask
-                
-                attn = tl.dot(qk, v, input_precision = "ieee")
-                o += attn
-
-            else:
-                k_ptrs = K_ptr + pid_h * stride_kh + start * stride_kn +\
-                    block_kv * stride_kn + \
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kn + \
-                    tl.arange(0, D)[None, :] * stride_kd
-                #手写pointers, k与v仍然是(BLOCK_N,D)的形状
-                v_ptrs = V_ptr + pid_h * stride_vh + start * stride_vn +\
-                        block_kv * stride_vn + \
-                        tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vn + \
-                        tl.arange(0, D)[None, :] * stride_vd
-                
-                #需要加入mask，将越界读取的数据置为0
-                mask_kv = (block_kv + tl.arange(0, BLOCK_SIZE_N))[:,None] < len_sample
-
-                k = tl.load(k_ptrs, mask=mask_kv, other=0)
-                v = tl.load(v_ptrs, mask=mask_kv, other=0)
-
-                rab_ptrs = rab_ptr + pid_b * stride_rab_b + \
-                    block_q * stride_rab_n + block_kv * stride_rab_m + \
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_rab_n + \
-                    tl.arange(0, BLOCK_SIZE_N)[None, :] * stride_rab_m
-                
-                rab = tl.load(rab_ptrs, mask=mask_kv.T, other=0)
-                qk = silu(tl.dot(q, k.T, input_precision = "ieee") + rab) / N
-
-                if block_kv == block_q:  #mask的处理方式
-                    # 因为mask是下三角的1矩阵，当block_kv < block_q时，不用做任何处理
-                    # 当block_kv == block_q时，需要将qk与mask相乘
-                        mask_ptrs = tl.make_block_ptr(
-                            base = attn_mask_ptr,
-                            shape = (N, N),
-                            strides = (stride_mask_n, stride_mask_m),
-                            offsets = (block_q , block_kv),
-                            block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
-                            order = (0, 1)
-                        )
-                        attn_mask = tl.load(mask_ptrs)
-                        qk = qk * attn_mask
-                
-                attn = tl.dot(qk, v, input_precision = "ieee")
-                o += attn
-            
-            o_block_ptrs = tl.make_block_ptr(
-                        base = Out_ptr + pid_h*stride_out_h + start*stride_out_n,
-                        shape = (len_sample , D),
-                        strides = (stride_out_n, stride_out_d),
-                        offsets = (block_q , 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
-                        block_shape = (BLOCK_SIZE_N, D),
+            if block_kv == block_q:  #mask的处理方式
+                # 因为mask是下三角的1矩阵，当block_kv < block_q时，不用做任何处理
+                # 当block_kv == block_q时，需要将qk与mask相乘
+                    mask_ptrs = tl.make_block_ptr(
+                        base = attn_mask_ptr,
+                        shape = (N, N),
+                        strides = (stride_mask_n, stride_mask_m),
+                        offsets = (block_q , block_kv),
+                        block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
                         order = (0, 1)
                     )
-            tl.store(o_block_ptrs, o)
+                    attn_mask = tl.load(mask_ptrs)
+                    qk = qk * attn_mask
+            
+            attn = tl.dot(qk, v, input_precision = "ieee")
+            o += attn
+            
+        o_block_ptrs = tl.make_block_ptr(
+                    base = Out_ptr + pid_h*stride_out_h + start*stride_out_n,
+                    shape = (len_sample , D),
+                    strides = (stride_out_n, stride_out_d),
+                    offsets = (block_q , 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
+                    block_shape = (BLOCK_SIZE_N, D),
+                    order = (0, 1)
+                )
+        tl.store(o_block_ptrs, o)
 
 
     else:
@@ -218,24 +176,10 @@ def fused_jagged_hstu_kernel(
 
                     qk = silu(tl.dot(q, k.T, input_precision = "ieee") + rab) / N
 
-                    if block_kv == block_q:  #mask的处理方式
-                        # 因为mask是下三角的1矩阵，当block_kv < block_q时，不用做任何处理
-                        # 当block_kv == block_q时，需要将qk与mask相乘
-                            mask_ptrs = tl.make_block_ptr(
-                                base = attn_mask_ptr,
-                                shape = (N, N),
-                                strides = (stride_mask_n, stride_mask_m),
-                                offsets = (block_q , block_kv),
-                                block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
-                                order = (0, 1)
-                            )
-                            attn_mask = tl.load(mask_ptrs)
-                            qk = qk * attn_mask
-                    
                     attn = tl.dot(qk, v, input_precision = "ieee")
                     o += attn
 
-                else:
+                else: #此时q和kv都在末尾，q == kv
                     k_ptrs = K_ptr + pid_h * stride_kh + start * stride_kn +\
                         block_kv * stride_kn + \
                         tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kn + \
@@ -255,19 +199,19 @@ def fused_jagged_hstu_kernel(
                     rab = tl.load(rab_ptrs, mask= mask & mask_kv.T, other=0)
                     qk = silu(tl.dot(q, k.T, input_precision = "ieee") + rab) / N
 
-                    if block_kv == block_q:  #mask的处理方式
+                    # if block_kv == block_q:  #mask的处理方式
                         # 因为mask是下三角的1矩阵，当block_kv < block_q时，不用做任何处理
                         # 当block_kv == block_q时，需要将qk与mask相乘
-                            mask_ptrs = tl.make_block_ptr(
-                                base = attn_mask_ptr,
-                                shape = (N, N),
-                                strides = (stride_mask_n, stride_mask_m),
-                                offsets = (block_q , block_kv),
-                                block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
-                                order = (0, 1)
-                            )
-                            attn_mask = tl.load(mask_ptrs)
-                            qk = qk * attn_mask
+                    mask_ptrs = tl.make_block_ptr(
+                        base = attn_mask_ptr,
+                        shape = (N, N),
+                        strides = (stride_mask_n, stride_mask_m),
+                        offsets = (block_q , block_kv),
+                        block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
+                        order = (0, 1)
+                    )
+                    attn_mask = tl.load(mask_ptrs)
+                    qk = qk * attn_mask
                     
                     attn = tl.dot(qk, v, input_precision = "ieee")
                     o += attn
