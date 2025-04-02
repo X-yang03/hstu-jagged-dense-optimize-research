@@ -3,7 +3,8 @@ import torch.nn.functional as F
 import triton
 from fused_jagged_hstu.fused_jagged_hstu import fused_jagged_hstu
 from fused_jagged_hstu.fused_jagged_hstu_backward import fused_jagged_hstu_backward
-
+from fused_jagged_hstu.fused_backward_simpler import fused_backward_simpler
+# 在改善nan的bug后发现，simpler版本的backward更快，因此将backward的代码改为simpler版本
 class FusedHSTUOp(torch.autograd.Function):
 
 
@@ -56,31 +57,12 @@ class FusedHSTUOp(torch.autograd.Function):
 
         if pad_len != 0:
             grad_output = F.pad(grad_output, (0, pad_len), "constant", 0)
-
-        grad_q, grad_k, grad_v, grad_rab = fused_jagged_hstu_backward(
+        assert(torch.isnan(grad_output).any() == False)
+        grad_q, grad_k, grad_v, grad_rab = fused_backward_simpler(
            grad_output, q, k, v, rab, attn_mask, head, dim, n, x_offsets
         )
 
-        # print("test q nan:", torch.isnan(grad_q).any())
-        # print("test k nan:", torch.isnan(grad_k).any())
-        # print("test v nan:", torch.isnan(grad_v).any())
-        # if(torch.isnan(grad_q).any()):
-        #     print(grad_q)
-        # if(torch.isnan(grad_k).any()):
-        #     #print(grad_k)
-        #     nan_indices = torch.isnan(grad_k).nonzero()
-        #     print(nan_indices)
-        #     print(x_offsets)
-        #     print("dk340:", grad_k[0,340,:])
-        #     print("dk341:",grad_k[0,341,:])
-        #     torch.save(q, "q.pt")
-        #     torch.save(k, "k.pt")
-        #     torch.save(v, "v.pt")
-        #     torch.save(rab, "rab.pt")
-        #     torch.save(attn_mask, "attn_mask.pt")
-        #     torch.save(x_offsets, "x_offsets.pt")
-        #     torch.save(grad_output, "grad_output.pt")
-        #     print("config: head: {}, dim: {}, n: {}".format(head, dim, n))
+        
         if pad_len != 0:
             grad_q = grad_q.permute(1, 0, 2)[:, :, :(-pad_len)].contiguous().view(sum_N, head*(dim - pad_len))
             grad_k = grad_k.permute(1, 0, 2)[:, :, :(-pad_len)].contiguous().view(sum_N, head*(dim - pad_len))

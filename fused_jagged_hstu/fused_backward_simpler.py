@@ -71,26 +71,24 @@ def fused_backward_kernel(
         v = tl.load(v_ptrs, mask=mask_kv, other=0)
             
         for block_q in range(block_kv, len_sample, BLOCK_SIZE_N):  # load Q_i, dQ_i, O_i, dO_i, d_attn_i
-            rab_ptrs = tl.make_block_ptr(  # rab shape : (B,1,N,N)
-                base = rab_ptr + pid_b * stride_rab_b,
-                shape = (N, N),
-                strides = (stride_rab_n, stride_rab_m),
-                offsets = (block_q , block_kv ),
-                block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
-                order = (0, 1)
-            )
+            
+            rab_ptrs = rab_ptr + pid_b * stride_rab_b +\
+                    block_q * stride_rab_n + block_kv * stride_rab_m +\
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_rab_n +\
+                    tl.arange(0, BLOCK_SIZE_N)[None, :] * stride_rab_m
+
             drab_ptrs = dRab_ptr + pid_b * stride_drab_b + pid_h * stride_drab_h +\
                     block_q * stride_drab_n + block_kv * stride_drab_m +\
                     tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_drab_n +\
                     tl.arange(0, BLOCK_SIZE_N)[None, :] * stride_drab_m
 
-            rab = tl.load(rab_ptrs)
+            mask = (block_q + tl.arange(0, BLOCK_SIZE_N))[:,None] < len_sample
+            rab = tl.load(rab_ptrs, mask = mask & mask_kv.T, other=0)
 
             q_ptrs = Q_ptr + pid_h * stride_qh + start * stride_qn +\
                         block_q * stride_qn + \
                     tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_qn + \
                     tl.arange(0, D)[None, :] * stride_qd
-            mask = (block_q + tl.arange(0, BLOCK_SIZE_N))[:,None] < len_sample
             q = tl.load(q_ptrs, mask=mask, other=0)
             #q = tl.load(q_ptrs)
 
