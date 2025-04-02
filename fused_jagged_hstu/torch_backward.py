@@ -1,10 +1,11 @@
 import torch
+import triton
 import torch.nn.functional as F
 from tqdm import tqdm
 import random
 import fbgemm_gpu
-from fused_jagged_hstu import fused_jagged_hstu
-from fused_jagged_hstu_backward import fused_jagged_hstu_backward
+from fused_jagged_hstu.fused_jagged_hstu import fused_jagged_hstu
+# from fused_jagged_hstu_backward import fused_jagged_hstu_backward
 
 
 def get_input(sum_N, head, d, B, n):
@@ -106,6 +107,25 @@ class CustomAttentionFunction(torch.autograd.Function):
         ctx.n = n
         ctx.B, ctx.head, ctx.d = B, head, d
 
+        sum_N, _ = q.shape
+        q = q.view(sum_N, head, d).permute(1, 0, 2).contiguous() # (head, sum_N, d)
+        k = k.view(sum_N, head, d).permute(1, 0, 2).contiguous() # (head, sum_N, d)
+        v = v.view(sum_N, head, d).permute(1, 0, 2).contiguous() # (head, sum_N, d
+        pad_len = triton.next_power_of_2(d) - d
+
+        if  pad_len != 0:
+            #raise ValueError("dim must be a power of 2")
+            q = F.pad(q, (0, pad_len), "constant", 0)
+            k = F.pad(k, (0, pad_len), "constant", 0)
+            v = F.pad(v, (0, pad_len), "constant", 0)
+            d += pad_len
+            #print("pad q,", q.shape)
+
+        if pad_len != 0:
+            return fused_jagged_hstu(q, k, v, rab, attn_mask, head, d, n, x_offsets).permute(1, 0, 2)[:,:,:(-pad_len)].contiguous().view(sum_N, head*(d-pad_len))
+
+        else:
+            return fused_jagged_hstu(q, k, v, rab, attn_mask, head, d, n, x_offsets).permute(1, 0, 2).contiguous().view(sum_N, head*d)
         return attn_output_sparse
 
     @staticmethod
@@ -198,54 +218,54 @@ class CustomAttentionFunction(torch.autograd.Function):
         return grad_q, grad_k, grad_v, grad_rab, None, None, None, None, None, None
 
 # 使用示例
-seq_len = [120, 60, 250]
-n = 0
-B = 20
-x_offsets = [0]
-for i in range(1, B+1):
-    rand_seq_len = random.choice(seq_len)
-    n = max(n, rand_seq_len)
-    x_offsets.append(x_offsets[-1] + rand_seq_len) # 生成一个长度为B的序列，每个元素为0-1024之间的随机数
-x_offsets = torch.tensor(x_offsets, device="cuda") # 转换为tensor
+# seq_len = [120, 60, 250]
+# n = 0
+# B = 20
+# x_offsets = [0]
+# for i in range(1, B+1):
+#     rand_seq_len = random.choice(seq_len)
+#     n = max(n, rand_seq_len)
+#     x_offsets.append(x_offsets[-1] + rand_seq_len) # 生成一个长度为B的序列，每个元素为0-1024之间的随机数
+# x_offsets = torch.tensor(x_offsets, device="cuda") # 转换为tensor
 
-head, d = 2 , 32
-sum_N = int(x_offsets[-1])
-
-
-q, k, v, rab, q1, k1, v1, rab1, attn_mask = get_input(sum_N, head, d, B, n)
-
-#rab2 = rab.clone().detach().requires_grad_(True)
-#attn_mask2 = attn_mask.clone().detach().requires_grad_(True)
-
-critertion = torch.nn.CrossEntropyLoss()
-critertion1 = torch.nn.CrossEntropyLoss()
-
-# 前向计算
-output = CustomAttentionFunction.apply(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
-
-y_true =torch.randn_like(output)
-
-loss = critertion(output, y_true)
-
-#print(loss)
-loss.backward()
-#print(q.grad[0, :])
-
-output1 = origin_einsum_attn(q1, k1, v1, rab1, attn_mask, B, n, head, d, x_offsets)
-
-loss1 = critertion1(output1, y_true)
-#print('diff between two forward: ', (output - output1).abs().mean(), (output - output1).abs().max())
-loss1.backward()
-
-print('diff between two q backward: ', (q.grad - q1.grad).abs().mean(), (q.grad - q1.grad).abs().max())
-print('diff between two k backward: ', (k.grad - k1.grad).abs().mean(), (k.grad - k1.grad).abs().max())
-print('diff between two v backward: ', (v.grad - v1.grad).abs().mean(), (v.grad - v1.grad).abs().max())
-print('diff between two rab: ', (rab.grad - rab1.grad).abs().mean(), (rab.grad - rab1.grad).abs().max())
+# head, d = 2 , 32
+# sum_N = int(x_offsets[-1])
 
 
-print("avg rab:", rab.grad.abs().mean())
-print("avg rab1:", rab1.grad.abs().mean())
-print(rab.grad)
-print(rab1.grad)
-print('diff ratio between rab: ',  (rab.grad - rab1.grad).abs().mean()/rab.grad.abs().mean())
+# q, k, v, rab, q1, k1, v1, rab1, attn_mask = get_input(sum_N, head, d, B, n)
+
+# #rab2 = rab.clone().detach().requires_grad_(True)
+# #attn_mask2 = attn_mask.clone().detach().requires_grad_(True)
+
+# critertion = torch.nn.CrossEntropyLoss()
+# critertion1 = torch.nn.CrossEntropyLoss()
+
+# # 前向计算
+# output = CustomAttentionFunction.apply(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
+
+# y_true =torch.randn_like(output)
+
+# loss = critertion(output, y_true)
+
+# #print(loss)
+# loss.backward()
+# #print(q.grad[0, :])
+
+# output1 = origin_einsum_attn(q1, k1, v1, rab1, attn_mask, B, n, head, d, x_offsets)
+
+# loss1 = critertion1(output1, y_true)
+# #print('diff between two forward: ', (output - output1).abs().mean(), (output - output1).abs().max())
+# loss1.backward()
+
+# print('diff between two q backward: ', (q.grad - q1.grad).abs().mean(), (q.grad - q1.grad).abs().max())
+# print('diff between two k backward: ', (k.grad - k1.grad).abs().mean(), (k.grad - k1.grad).abs().max())
+# print('diff between two v backward: ', (v.grad - v1.grad).abs().mean(), (v.grad - v1.grad).abs().max())
+# print('diff between two rab: ', (rab.grad - rab1.grad).abs().mean(), (rab.grad - rab1.grad).abs().max())
+
+
+# print("avg rab:", rab.grad.abs().mean())
+# print("avg rab1:", rab1.grad.abs().mean())
+# print(rab.grad)
+# print(rab1.grad)
+# print('diff ratio between rab: ',  (rab.grad - rab1.grad).abs().mean()/rab.grad.abs().mean())
 #print(rab.grad.shape) # torch.Size([2, 4, 10, 10])

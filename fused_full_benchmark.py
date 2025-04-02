@@ -7,6 +7,7 @@ import fbgemm_gpu
 import torch.profiler
 from fused_jagged_hstu.fused_hstu_op import FusedHSTUOp
 from fused_jagged_hstu.fused_simpler_op import FusedHSTUOp_
+from fused_jagged_hstu.torch_backward import CustomAttentionFunction
 
 def get_input(sum_N, head, d, B, n):
     q = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
@@ -80,8 +81,8 @@ print('===========================================================')
 print('warm up')
 for _ in tqdm(range(3)):
     q, k, v, rab, q1, k1, v1, rab1, attn_mask = get_input(sum_N, head, d, B, n)
-#    warmup_einsum_attn = origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
-    warmup_einsum_attn = FusedHSTUOp_.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
+    warmup_einsum_attn = origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
+    #warmup_einsum_attn = FusedHSTUOp_.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
     loss = warmup_einsum_attn.sum()
     loss.backward()
     warmup_fused_attn = FusedHSTUOp.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
@@ -107,8 +108,8 @@ for _ in tqdm(range(test_num)):
 
 
     start_event.record()
-#    einsum_attn = origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
-    einsum_attn = FusedHSTUOp_.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
+    einsum_attn = origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
+    # einsum_attn = FusedHSTUOp_.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
     end_event.record()
     torch.cuda.synchronize()
     einsum_forward_time.append(start_event.elapsed_time(end_event))
