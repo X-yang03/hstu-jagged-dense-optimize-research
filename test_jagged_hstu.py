@@ -5,6 +5,7 @@ from tqdm import tqdm
 import random
 import fbgemm_gpu
 from fused_jagged_hstu.fused_hstu_op import FusedHSTUOp
+from fused_hstu_v2.fused_hstu_op_v2 import FusedHSTUOpv2
 
 def get_input(sum_N, head, d, B, n):
     q = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
@@ -51,14 +52,14 @@ def origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets):
         )[0]
     return attn_output
 
-seq_len = [128, 120, 256, 260, 512, 510, 1024, 1020, 100, 200, 300, 400]
+seq_len = [120,128, 256, 512, 1024]
 max_seq = 200
 min_seq = 100
 n = 0
-B = 128
+B  = 128
 x_offsets = [0]
 for i in range(1, B+1):
-    #rand_seq_len = random.choice(seq_len)
+    # rand_seq_len = random.choice(seq_len)
     rand_seq_len = random.randint(min_seq, max_seq)
     n = max(n, rand_seq_len)
     x_offsets.append(x_offsets[-1] + rand_seq_len) # 生成一个长度为B的序列，每个元素为0-1024之间的随机数
@@ -79,7 +80,7 @@ print('warm up')
 for _ in tqdm(range(3)):
     q, k, v, rab, q1, k1, v1, rab1, attn_mask = get_input(sum_N, head, d, B, n)
     warmup_einsum_attn = origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
-    warmup_fused_attn = FusedHSTUOp.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
+    warmup_fused_attn = FusedHSTUOpv2.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
 print('warm up done')
 
 print('===========================================================')
@@ -100,7 +101,8 @@ for _ in tqdm(range(test_num)):
 
     einsum_attn = origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
 
-    fused_attn = FusedHSTUOp.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
+    fused_attn = FusedHSTUOpv2.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
+
 
     #print("forward pass check: ", torch.allclose(einsum_attn, fused_attn, atol=1e-4))
     assert(torch.allclose(einsum_attn, fused_attn, atol=1e-4))
