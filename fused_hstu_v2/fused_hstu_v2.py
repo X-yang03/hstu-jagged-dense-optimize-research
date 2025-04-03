@@ -103,7 +103,7 @@ def fused_jagged_hstu_kernel(
 
             qk = silu(tl.dot(q, k.T, input_precision = "ieee") + rab) / N
 
-            if block_kv == block_q:  #mask的处理方式
+            if block_kv == block_q:  #mask的处理方式,由于kv和q都在范围内，mask可以用blk_ptr读取
                 # 因为mask是下三角的1矩阵，当block_kv < block_q时，不用做任何处理
                 # 当block_kv == block_q时，需要将qk与mask相乘
                     mask_ptrs = tl.make_block_ptr(
@@ -150,7 +150,7 @@ def fused_jagged_hstu_kernel(
                     tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_rab_n + \
                     tl.arange(0, BLOCK_SIZE_N)[None, :] * stride_rab_m
                 
-                if block_kv + BLOCK_SIZE_N <= len_sample:  #kv块在范围内
+                if block_kv + BLOCK_SIZE_N <= len_sample:  #kv块在范围内，此时kv小于q，不用乘以mask
                     k_block_ptrs = tl.make_block_ptr(
                         base=K_ptr + pid_h * stride_kh + start * stride_kn,
                         shape = (len_sample, D),
@@ -202,15 +202,12 @@ def fused_jagged_hstu_kernel(
                     # if block_kv == block_q:  #mask的处理方式
                         # 因为mask是下三角的1矩阵，当block_kv < block_q时，不用做任何处理
                         # 当block_kv == block_q时，需要将qk与mask相乘
-                    mask_ptrs = tl.make_block_ptr(
-                        base = attn_mask_ptr,
-                        shape = (N, N),
-                        strides = (stride_mask_n, stride_mask_m),
-                        offsets = (block_q , block_kv),
-                        block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
-                        order = (0, 1)
-                    )
-                    attn_mask = tl.load(mask_ptrs)
+                    
+                    #注意：kv和q都在末尾不规则长度，此时mask不能用blk_ptr读取！！！
+                    mask_ptrs = attn_mask_ptr + block_q * stride_mask_n + block_kv * stride_mask_m +\
+                            tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_mask_n +\
+                            tl.arange(0, BLOCK_SIZE_N)[None,:] * stride_mask_m
+                    attn_mask = tl.load(mask_ptrs, mask = mask & mask_kv.T, other=0)
                     qk = qk * attn_mask
                     
                     attn = tl.dot(qk, v, input_precision = "ieee")

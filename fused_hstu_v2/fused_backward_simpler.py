@@ -121,15 +121,21 @@ def fused_backward_kernel(
             if block_kv == block_q:  #mask的处理方式
             # 因为mask是下三角的1矩阵，当block_kv < block_q时，不用做任何处理
             # 当block_kv == block_q时，需要将qk与mask相乘
-                mask_ptrs = tl.make_block_ptr(
-                    base = attn_mask_ptr,
-                    shape = (N, N),
-                    strides = (stride_mask_n, stride_mask_m),
-                    offsets = (block_q , block_kv),
-                    block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
-                    order = (0, 1)
-                )
-                attn_mask = tl.load(mask_ptrs)
+                # mask_ptrs = tl.make_block_ptr(
+                #     base = attn_mask_ptr,
+                #     shape = (N, N),
+                #     strides = (stride_mask_n, stride_mask_m),
+                #     offsets = (block_q , block_kv),
+                #     block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
+                #     order = (0, 1)
+                # )
+                mask_ptrs = attn_mask_ptr + block_q * stride_mask_n + block_kv * stride_mask_m +\
+                            tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_mask_n +\
+                            tl.arange(0, BLOCK_SIZE_N)[None,:] * stride_mask_m
+                attn_mask = tl.load(mask_ptrs, mask = mask & mask_kv.T, other=0)
+                # mask 也要控制读取内存边界！！！！ 否则会illegal memory access 或读出 nan
+                                
+                # attn_mask = tl.load(mask_ptrs)
                 qk_normalized = qk_normalized * attn_mask  #(BLOCK_SIZE_N, BLOCK_SIZE_N)
                 d_qk = d_qk * attn_mask #掩码梯度
 
