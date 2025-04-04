@@ -59,24 +59,38 @@ def fused_jagged_hstu_kernel(
     if block_q + BLOCK_SIZE_N <= len_sample:  # q块在范围内
         o = tl.zeros((BLOCK_SIZE_N, D), dtype=tl.float32)
         # q 是 （N, H, D）形状
-        q_ptrs = Q_ptr + start * stride_qn + block_q * stride_qn + pid_h * stride_qh +\
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_qh * H + \
-                    tl.arange(0, D)[None, :] * stride_qd
+        q_blk_ptrs = tl.make_block_ptr(
+            base = Q_ptr + pid_h * stride_qh + start * stride_qn,
+            shape = ((len_sample * H), D),
+            strides = (stride_qn, stride_qd),  #实际上 stride_qn = stride_qh * H
+            offsets = (block_q , 0),
+            block_shape = (BLOCK_SIZE_N, D),
+            order = (0, 1)
+        )
         
-        q = tl.load(q_ptrs)
+        q = tl.load(q_blk_ptrs)
 
         for block_kv in range(0, block_q + BLOCK_SIZE_N, BLOCK_SIZE_N):  #load  K_j V_j
             #当q在范围内时，由于kv<=q，所以kv也在范围内
-            k_ptrs = K_ptr + start * stride_kn + block_kv * stride_kn + pid_h * stride_kh +\
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kh * H + \
-                    tl.arange(0, D)[None, :] * stride_kd
+            k_blk_ptrs = tl.make_block_ptr(
+            base = K_ptr + pid_h * stride_kh + start * stride_kn,
+            shape = ((len_sample * H), D),
+            strides = (stride_kn, stride_kd),
+            offsets = (block_kv , 0),
+            block_shape = (BLOCK_SIZE_N, D),
+            order = (0, 1)
+        )
+            v_blk_ptrs = tl.make_block_ptr(
+            base = V_ptr + pid_h * stride_vh + start * stride_vn,
+            shape = ((len_sample * H), D),
+            strides = (stride_vn, stride_vd),
+            offsets = (block_kv , 0),
+            block_shape = (BLOCK_SIZE_N, D),
+            order = (0, 1)
+        )
 
-            v_ptrs = V_ptr + start * stride_vn + block_kv * stride_vn + pid_h * stride_vh +\
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vh * H + \
-                    tl.arange(0, D)[None, :] * stride_vd
-
-            k = tl.load(k_ptrs)
-            v = tl.load(v_ptrs)
+            k = tl.load(k_blk_ptrs)
+            v = tl.load(v_blk_ptrs)
 
             rab_blk_ptrs = tl.make_block_ptr(  # rab shape : (B,1,N,N)
                 base = rab_ptr + pid_b * stride_rab_b,
@@ -109,15 +123,12 @@ def fused_jagged_hstu_kernel(
             
         o_block_ptrs = tl.make_block_ptr(
                     base = Out_ptr + pid_h*stride_out_h + start*stride_out_n,
-                    shape = (len_sample , D),
+                    shape = ((len_sample * H) , D),
                     strides = (stride_out_n, stride_out_d),
                     offsets = (block_q , 0), #k_i (N,D) * q_j.T (D, N) -> o_ji (N, N)
                     block_shape = (BLOCK_SIZE_N, D),
                     order = (0, 1)
                 )
-        o_ptrs = Out_ptr + start * stride_out_n + block_q * stride_out_n + pid_h * stride_out_h +\
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_out_h * H + \
-                    tl.arange(0, D)[None, :] * stride_out_d
         tl.store(o_block_ptrs, o)
 
 
@@ -127,7 +138,7 @@ def fused_jagged_hstu_kernel(
             o = tl.zeros((BLOCK_SIZE_N, D), dtype=tl.float32)
 
             q_ptrs = Q_ptr + start * stride_qn + block_q * stride_qn + pid_h * stride_qh +\
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_qh * H + \
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_qn + \
                     tl.arange(0, D)[None, :] * stride_qd
             
             mask = (block_q + tl.arange(0, BLOCK_SIZE_N))[:,None] < len_sample
@@ -140,17 +151,25 @@ def fused_jagged_hstu_kernel(
                     tl.arange(0, BLOCK_SIZE_N)[None, :] * stride_rab_m
                 
                 if block_kv + BLOCK_SIZE_N <= len_sample:  #kv块在范围内，此时kv小于q，不用乘以mask
-                    k_ptrs = K_ptr + start * stride_kn + block_kv * stride_kn + pid_h * stride_kh +\
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kh * H + \
-                    tl.arange(0, D)[None, :] * stride_kd
+                    k_blk_ptrs = tl.make_block_ptr(
+                    base = K_ptr + pid_h * stride_kh + start * stride_kn,
+                    shape = ((len_sample * H), D),
+                    strides = (stride_kn, stride_kd),
+                    offsets = (block_kv , 0),
+                    block_shape = (BLOCK_SIZE_N, D),
+                    order = (0, 1)
+                )
+                    v_blk_ptrs = tl.make_block_ptr(
+                    base = V_ptr + pid_h * stride_vh + start * stride_vn,
+                    shape = ((len_sample * H), D),
+                    strides = (stride_vn, stride_vd),
+                    offsets = (block_kv , 0),
+                    block_shape = (BLOCK_SIZE_N, D),
+                    order = (0, 1)
+                )
 
-                    v_ptrs = V_ptr + start * stride_vn + block_kv * stride_vn + pid_h * stride_vh +\
-                            tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vh * H + \
-                            tl.arange(0, D)[None, :] * stride_vd
-
-
-                    k = tl.load(k_ptrs)
-                    v = tl.load(v_ptrs)
+                    k = tl.load(k_blk_ptrs)
+                    v = tl.load(v_blk_ptrs)
 
                     rab = tl.load(rab_ptrs, mask = mask, other=0)
 
@@ -161,11 +180,11 @@ def fused_jagged_hstu_kernel(
 
                 else: #此时q和kv都在末尾，q == kv
                     k_ptrs = K_ptr + start * stride_kn + block_kv * stride_kn + pid_h * stride_kh +\
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kh * H + \
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kn + \
                     tl.arange(0, D)[None, :] * stride_kd
 
                     v_ptrs = V_ptr + start * stride_vn + block_kv * stride_vn + pid_h * stride_vh +\
-                            tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vh * H + \
+                            tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vn + \
                             tl.arange(0, D)[None, :] * stride_vd
 
                     #需要加入mask，将越界读取的数据置为0
@@ -192,7 +211,7 @@ def fused_jagged_hstu_kernel(
                     o += attn
             
             o_ptrs = Out_ptr + start * stride_out_n + block_q * stride_out_n + pid_h * stride_out_h +\
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_out_h * H + \
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_out_n + \
                     tl.arange(0, D)[None, :] * stride_out_d
             tl.store(o_ptrs, o, mask = mask)
 

@@ -8,7 +8,7 @@ import torch.profiler
 from fused_jagged_hstu.fused_hstu_op import FusedHSTUOp
 from fused_jagged_hstu.fused_simpler_op import FusedHSTUOp_
 from fused_hstu_v2.fused_hstu_op_v2 import FusedHSTUOpv2
-from fused_jagged_hstu.torch_backward import CustomAttentionFunction
+from fused_hstu_v3.fused_hstu_op_v3 import FusedHSTUOpv3
 
 def get_input(sum_N, head, d, B, n):
     q = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
@@ -26,34 +26,6 @@ def get_input(sum_N, head, d, B, n):
     # 调整形状为 (1, 1, n, n)
     attn_mask = attn_mask.view(1, 1, n, n) 
     return q, k, v, rab,  q1, k1, v1, rab1, attn_mask
-
-def origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets):
-    padded_q = torch.ops.fbgemm.jagged_to_padded_dense(  #根据x_offsets的位置信息，将q和k转换为padded形式，统一为长为n的序列， [B, n, num_heads*dqk]
-            values=q, offsets=[x_offsets], max_lengths=[n], padding_value=0.0
-        )
-    padded_k = torch.ops.fbgemm.jagged_to_padded_dense(
-            values=k, offsets=[x_offsets], max_lengths=[n], padding_value=0.0
-        )
-
-    qk_attn = torch.einsum(
-            "bnhd,bmhd->bhnm",  #在attention_dim维度上计算q和k的点积  ,attn形状(B,num_heads,n,n)
-            padded_q.view(B, n, head, d),
-            padded_k.view(B, n, head, d),
-        )           
-    qk_attn = qk_attn + rab
-    qk_attn = F.silu(qk_attn) / n #SiLU之后局部归一化
-    qk_attn = qk_attn * attn_mask
-    attn_output = torch.ops.fbgemm.dense_to_jagged( #Φ(qk)v  , dense_to_jagged将输出转换为(sum_N, head*d)形状
-            torch.einsum(
-                "bhnm,bmhd->bnhd",
-                qk_attn,
-                torch.ops.fbgemm.jagged_to_padded_dense(v, [x_offsets], [n]).reshape(
-                    B, n, head, d  #将v转换为padded形式
-                ),
-            ).reshape(B, n, head * d), 
-            [x_offsets],
-        )[0]
-    return attn_output
 
 seq_len = [128, 120, 256, 260, 512, 510, 1024, 1020, 100, 200, 300, 400]
 max_seq = 200
@@ -82,12 +54,12 @@ print('===========================================================')
 print('warm up')
 for _ in tqdm(range(3)):
     q, k, v, rab, q1, k1, v1, rab1, attn_mask = get_input(sum_N, head, d, B, n)
-    warmup_einsum_attn = FusedHSTUOp.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
-    #warmup_einsum_attn = FusedHSTUOp_.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
-    loss = warmup_einsum_attn.sum()
+    warmup_v1_attn = FusedHSTUOpv3.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
+    #warmup_v1_attn = v2HSTUOp_.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
+    loss = warmup_v1_attn.sum()
     loss.backward()
-    warmup_fused_attn = FusedHSTUOpv2.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
-    loss1 = warmup_fused_attn.sum()
+    warmup_v2_attn = FusedHSTUOpv2.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
+    loss1 = warmup_v2_attn.sum()
     loss1.backward()
 print('warm up done')
 
@@ -95,10 +67,10 @@ print('===========================================================')
 
 print('start benchmark')
 
-einsum_forward_time = []
-fused_forward_time = []
-einsum_backward_time = []
-fused_backward_time = []
+v1_forward_time = []
+v2_forward_time = []
+v1_backward_time = []
+v2_backward_time = []
 
 test_num = 10
 for _ in tqdm(range(test_num)):
@@ -109,50 +81,50 @@ for _ in tqdm(range(test_num)):
 
 
     start_event.record()
-    einsum_attn = FusedHSTUOp.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
-    # einsum_attn = FusedHSTUOp_.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
+    v1_attn = FusedHSTUOpv3.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
+    # v1_attn = v2HSTUOp_.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
     end_event.record()
     torch.cuda.synchronize()
-    einsum_forward_time.append(start_event.elapsed_time(end_event))
+    v1_forward_time.append(start_event.elapsed_time(end_event))
 
     start_event.record()
-    fused_attn = FusedHSTUOpv2.apply(q1, k1, v1, rab, attn_mask, head, d, n, x_offsets)
+    v2_attn = FusedHSTUOpv2.apply(q1, k1, v1, rab, attn_mask, head, d, n, x_offsets)
     end_event.record()
     torch.cuda.synchronize()
-    fused_forward_time.append(start_event.elapsed_time(end_event))
+    v2_forward_time.append(start_event.elapsed_time(end_event))
 
-    attn_true = torch.randn_like(einsum_attn)
+    attn_true = torch.randn_like(v1_attn)
 
     criterion = nn.CrossEntropyLoss()
-    loss = criterion(einsum_attn, attn_true)
+    loss = criterion(v1_attn, attn_true)
     start_event.record()
     loss.backward()
     end_event.record()
     torch.cuda.synchronize()
-    einsum_backward_time.append(start_event.elapsed_time(end_event))
+    v1_backward_time.append(start_event.elapsed_time(end_event))
 
     criterion1 = nn.CrossEntropyLoss()
-    loss1 = criterion1(fused_attn, attn_true)
+    loss1 = criterion1(v2_attn, attn_true)
     start_event.record()
     loss1.backward()
     end_event.record()
     torch.cuda.synchronize()
-    fused_backward_time.append(start_event.elapsed_time(end_event))
+    v2_backward_time.append(start_event.elapsed_time(end_event))
 
-print("avg einsum forward time: ", sum(einsum_forward_time) / len(einsum_forward_time))
-print("avg fused forward time: ", sum(fused_forward_time) / len(fused_forward_time))
-print("avg einsum backward time: ", sum(einsum_backward_time) / len(einsum_backward_time))
-print("avg fused backward time: ", sum(fused_backward_time) / len(fused_backward_time))
+print("avg v1 forward time: ", sum(v1_forward_time) / len(v1_forward_time))
+print("avg v2 forward time: ", sum(v2_forward_time) / len(v2_forward_time))
+print("avg v1 backward time: ", sum(v1_backward_time) / len(v1_backward_time))
+print("avg v2 backward time: ", sum(v2_backward_time) / len(v2_backward_time))
 
 print('===========================================================')
 
-speedup_forward = [einsum_forward_time[i] / fused_forward_time[i] for i in range(len(einsum_forward_time))]
-speedup_backward = [einsum_backward_time[i] / fused_backward_time[i] for i in range(len(einsum_backward_time))]
+speedup_forward = [v1_forward_time[i] / v2_forward_time[i] for i in range(len(v1_forward_time))]
+speedup_backward = [v1_backward_time[i] / v2_backward_time[i] for i in range(len(v1_backward_time))]
 
 print("avg forward speedup: ", sum(speedup_forward) / len(speedup_forward))
 print("avg backward speedup: ", sum(speedup_backward) / len(speedup_backward))
 print('===========================================================')
 print('benchmark done')
 
-print(einsum_backward_time)
-print(fused_backward_time)
+print(v1_backward_time)
+print(v2_backward_time)
