@@ -47,19 +47,19 @@ def fused_backward_kernel(
         mask_kv = (block_kv + tl.arange(0, BLOCK_SIZE_N))[:,None] < len_sample
 
         k_ptrs = K_ptr + start * stride_kn + block_kv * stride_kn + pid_h * stride_kh +\
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kh * H + \
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kn + \
                     tl.arange(0, D)[None, :] * stride_kd
 
         v_ptrs = V_ptr + start * stride_vn + block_kv * stride_vn + pid_h * stride_vh +\
-                tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vh * H + \
+                tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vn + \
                 tl.arange(0, D)[None, :] * stride_vd
 
         dk_ptrs = dK_ptr + start * stride_kn + block_kv * stride_kn + pid_h * stride_kh +\
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kh * H + \
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kn + \
                     tl.arange(0, D)[None, :] * stride_kd
 
         dv_ptrs = dV_ptr + start * stride_vn + block_kv * stride_vn + pid_h * stride_vh +\
-                tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vh * H + \
+                tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vn + \
                 tl.arange(0, D)[None, :] * stride_vd
         
         k = tl.load(k_ptrs, mask=mask_kv, other=0)
@@ -81,17 +81,17 @@ def fused_backward_kernel(
             rab = tl.load(rab_ptrs, mask = mask & mask_kv.T, other=0)
 
             q_ptrs = Q_ptr + start * stride_qn + block_q * stride_qn + pid_h * stride_qh +\
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_qh * H + \
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_qn + \
                     tl.arange(0, D)[None, :] * stride_qd
             
             q = tl.load(q_ptrs, mask=mask, other=0)
             #q = tl.load(q_ptrs)
             dq_ptrs = dQ_ptr + start * stride_qn + block_q * stride_qn + pid_h * stride_qh +\
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_qh * H + \
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_qn + \
                     tl.arange(0, D)[None, :] * stride_qd
             
             do_ptrs = dOut_ptr + start * stride_out_n + block_q * stride_out_n + pid_h * stride_out_h +\
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_out_h * H + \
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_out_n + \
                     tl.arange(0, D)[None, :] * stride_out_d
             
             d_q = tl.load(dq_ptrs, mask=mask, other=0)
