@@ -1,0 +1,247 @@
+INFO:root:Rank 0: loading gin config from configs/ml-1m/hstu-sampled-softmax-n128-large-final.gin
+INFO:root:cuda.matmul.allow_tf32: True
+INFO:root:cudnn.allow_tf32: True
+INFO:root:Training model on rank 0.
+Initialize _item_emb.weight as truncated normal: torch.Size([3953, 50]) params
+Skipping init for _embedding_module._item_emb.weight
+Initialize _input_features_preproc._pos_emb.weight as xavier normal: torch.Size([211, 50]) params
+Skipping init for _hstu._attention_layers.0._uvqk
+Skipping init for _hstu._attention_layers.0._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.0._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.0._o.weight
+Skipping init for _hstu._attention_layers.0._o.bias
+Skipping init for _hstu._attention_layers.1._uvqk
+Skipping init for _hstu._attention_layers.1._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.1._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.1._o.weight
+Skipping init for _hstu._attention_layers.1._o.bias
+Skipping init for _hstu._attention_layers.2._uvqk
+Skipping init for _hstu._attention_layers.2._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.2._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.2._o.weight
+Skipping init for _hstu._attention_layers.2._o.bias
+Skipping init for _hstu._attention_layers.3._uvqk
+Skipping init for _hstu._attention_layers.3._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.3._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.3._o.weight
+Skipping init for _hstu._attention_layers.3._o.bias
+Skipping init for _hstu._attention_layers.4._uvqk
+Skipping init for _hstu._attention_layers.4._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.4._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.4._o.weight
+Skipping init for _hstu._attention_layers.4._o.bias
+Skipping init for _hstu._attention_layers.5._uvqk
+Skipping init for _hstu._attention_layers.5._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.5._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.5._o.weight
+Skipping init for _hstu._attention_layers.5._o.bias
+Skipping init for _hstu._attention_layers.6._uvqk
+Skipping init for _hstu._attention_layers.6._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.6._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.6._o.weight
+Skipping init for _hstu._attention_layers.6._o.bias
+Skipping init for _hstu._attention_layers.7._uvqk
+Skipping init for _hstu._attention_layers.7._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.7._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.7._o.weight
+Skipping init for _hstu._attention_layers.7._o.bias
+INFO:root:Rank 0: writing logs to ./exps/ml-1m-l200/HSTU-b8-h2-dqk25-dv25-lsilud0.2-ad0.0_DotProduct_local-l2-eps1e-06_ssl-t0.05-n128-b128-lr0.001-wu0-wd0-2025-04-03
+INFO:root:rank 0:  batch-stat (eval): iter 0 (epoch 0): NDCG@10 0.0000, HR@10 0.0000, HR@50 0.0000, MRR 0.0012 
+INFO:root: rank: 0, batch-stat (train): step 0 (epoch 0 in 49.65s): 8.405782
+INFO:root:rank 0: eval @ epoch 0 in 47.39s: NDCG@10 0.0182, NDCG@50 0.0404, HR@10 0.0371, HR@50 0.1416, MRR 0.0199
+INFO:root:rank 0: eval @ epoch 1 in 46.93s: NDCG@10 0.0426, NDCG@50 0.0752, HR@10 0.0833, HR@50 0.2349, MRR 0.0402
+INFO:root:rank 0:  batch-stat (eval): iter 100 (epoch 2): NDCG@10 0.0617, HR@10 0.1250, HR@50 0.2734, MRR 0.0529 
+INFO:root: rank: 0, batch-stat (train): step 100 (epoch 2 in 45.04s): 3.532246
+INFO:root:rank 0: eval @ epoch 2 in 46.71s: NDCG@10 0.0756, NDCG@50 0.1223, HR@10 0.1440, HR@50 0.3594, MRR 0.0679
+INFO:root:rank 0: eval @ epoch 3 in 46.79s: NDCG@10 0.1039, NDCG@50 0.1552, HR@10 0.1932, HR@50 0.4280, MRR 0.0908
+INFO:root:rank 0:  batch-stat (eval): iter 200 (epoch 4): NDCG@10 0.1113, HR@10 0.1953, HR@50 0.4688, MRR 0.1002 
+INFO:root: rank: 0, batch-stat (train): step 200 (epoch 4 in 45.67s): 2.715709
+INFO:root:rank 0: eval @ epoch 4 in 46.55s: NDCG@10 0.1113, NDCG@50 0.1662, HR@10 0.2099, HR@50 0.4608, MRR 0.0959
+INFO:root:rank 0: eval @ epoch 5 in 46.82s: NDCG@10 0.1274, NDCG@50 0.1826, HR@10 0.2359, HR@50 0.4868, MRR 0.1090
+INFO:root:rank 0:  batch-stat (eval): iter 300 (epoch 6): NDCG@10 0.1406, HR@10 0.2812, HR@50 0.6328, MRR 0.1170 
+INFO:root: rank: 0, batch-stat (train): step 300 (epoch 6 in 46.83s): 2.469975
+INFO:root:rank 0: eval @ epoch 6 in 47.08s: NDCG@10 0.1329, NDCG@50 0.1887, HR@10 0.2477, HR@50 0.5007, MRR 0.1130
+INFO:root:rank 0: eval @ epoch 7 in 46.91s: NDCG@10 0.1381, NDCG@50 0.1937, HR@10 0.2583, HR@50 0.5104, MRR 0.1165
+INFO:root:rank 0:  batch-stat (eval): iter 400 (epoch 8): NDCG@10 0.1821, HR@10 0.3047, HR@50 0.6172, MRR 0.1628 
+INFO:root: rank: 0, batch-stat (train): step 400 (epoch 8 in 47.77s): 2.292406
+INFO:root:rank 0: eval @ epoch 8 in 47.34s: NDCG@10 0.1406, NDCG@50 0.2009, HR@10 0.2560, HR@50 0.5306, MRR 0.1209
+INFO:root:rank 0: eval @ epoch 9 in 47.73s: NDCG@10 0.1445, NDCG@50 0.2046, HR@10 0.2641, HR@50 0.5361, MRR 0.1238
+INFO:root:rank 0:  batch-stat (eval): iter 500 (epoch 10): NDCG@10 0.1266, HR@10 0.2344, HR@50 0.5391, MRR 0.1106 
+INFO:root: rank: 0, batch-stat (train): step 500 (epoch 10 in 47.85s): 2.361607
+INFO:root:rank 0: eval @ epoch 10 in 47.12s: NDCG@10 0.1490, NDCG@50 0.2087, HR@10 0.2717, HR@50 0.5427, MRR 0.1272
+INFO:root:rank 0: eval @ epoch 11 in 47.33s: NDCG@10 0.1526, NDCG@50 0.2144, HR@10 0.2700, HR@50 0.5485, MRR 0.1330
+INFO:root:rank 0:  batch-stat (eval): iter 600 (epoch 12): NDCG@10 0.1402, HR@10 0.2656, HR@50 0.5703, MRR 0.1179 
+INFO:root: rank: 0, batch-stat (train): step 600 (epoch 12 in 49.01s): 2.449858
+INFO:root:rank 0: eval @ epoch 12 in 46.92s: NDCG@10 0.1568, NDCG@50 0.2166, HR@10 0.2800, HR@50 0.5507, MRR 0.1349
+INFO:root:rank 0: eval @ epoch 13 in 46.85s: NDCG@10 0.1586, NDCG@50 0.2199, HR@10 0.2805, HR@50 0.5588, MRR 0.1372
+INFO:root:rank 0:  batch-stat (eval): iter 700 (epoch 14): NDCG@10 0.1380, HR@10 0.2656, HR@50 0.6641, MRR 0.1207 
+INFO:root: rank: 0, batch-stat (train): step 700 (epoch 14 in 49.78s): 2.095015
+INFO:root:rank 0: eval @ epoch 14 in 47.16s: NDCG@10 0.1586, NDCG@50 0.2172, HR@10 0.2894, HR@50 0.5550, MRR 0.1342
+INFO:root:rank 0: eval @ epoch 15 in 47.35s: NDCG@10 0.1612, NDCG@50 0.2216, HR@10 0.2886, HR@50 0.5609, MRR 0.1381
+INFO:root:rank 0:  batch-stat (eval): iter 800 (epoch 16): NDCG@10 0.1594, HR@10 0.3047, HR@50 0.6094, MRR 0.1330 
+INFO:root: rank: 0, batch-stat (train): step 800 (epoch 16 in 50.47s): 2.270536
+INFO:root:rank 0: eval @ epoch 16 in 47.14s: NDCG@10 0.1634, NDCG@50 0.2238, HR@10 0.2930, HR@50 0.5669, MRR 0.1396
+INFO:root:rank 0: eval @ epoch 17 in 47.14s: NDCG@10 0.1631, NDCG@50 0.2261, HR@10 0.2856, HR@50 0.5692, MRR 0.1421
+INFO:root:rank 0:  batch-stat (eval): iter 900 (epoch 18): NDCG@10 0.1699, HR@10 0.3125, HR@50 0.6328, MRR 0.1436 
+INFO:root: rank: 0, batch-stat (train): step 900 (epoch 18 in 51.37s): 2.290780
+INFO:root:rank 0: eval @ epoch 18 in 47.33s: NDCG@10 0.1671, NDCG@50 0.2280, HR@10 0.2925, HR@50 0.5677, MRR 0.1447
+INFO:root:rank 0: eval @ epoch 19 in 46.42s: NDCG@10 0.1663, NDCG@50 0.2285, HR@10 0.2934, HR@50 0.5747, MRR 0.1436
+INFO:root:rank 0:  batch-stat (eval): iter 1000 (epoch 20): NDCG@10 0.2375, HR@10 0.3828, HR@50 0.6641, MRR 0.2101 
+INFO:root: rank: 0, batch-stat (train): step 1000 (epoch 20 in 51.86s): 2.221767
+INFO:root:rank 0: eval @ epoch 20 in 46.88s: NDCG@10 0.1703, NDCG@50 0.2298, HR@10 0.3031, HR@50 0.5727, MRR 0.1454
+INFO:root:rank 0: eval @ epoch 21 in 47.06s: NDCG@10 0.1673, NDCG@50 0.2295, HR@10 0.2970, HR@50 0.5778, MRR 0.1438
+INFO:root:rank 0:  batch-stat (eval): iter 1100 (epoch 22): NDCG@10 0.1858, HR@10 0.3203, HR@50 0.5781, MRR 0.1586 
+INFO:root: rank: 0, batch-stat (train): step 1100 (epoch 22 in 52.96s): 2.162788
+INFO:root:rank 0: eval @ epoch 22 in 47.29s: NDCG@10 0.1691, NDCG@50 0.2308, HR@10 0.2992, HR@50 0.5772, MRR 0.1455
+INFO:root:rank 0: eval @ epoch 23 in 47.34s: NDCG@10 0.1689, NDCG@50 0.2307, HR@10 0.3007, HR@50 0.5785, MRR 0.1449
+INFO:root:rank 0: eval @ epoch 24 in 47.55s: NDCG@10 0.1733, NDCG@50 0.2351, HR@10 0.3048, HR@50 0.5829, MRR 0.1493
+INFO:root:rank 0:  batch-stat (eval): iter 1200 (epoch 25): NDCG@10 0.2124, HR@10 0.3516, HR@50 0.6172, MRR 0.1830 
+INFO:root: rank: 0, batch-stat (train): step 1200 (epoch 25 in 44.78s): 2.144141
+INFO:root:rank 0: eval @ epoch 25 in 47.30s: NDCG@10 0.1716, NDCG@50 0.2313, HR@10 0.3073, HR@50 0.5768, MRR 0.1458
+INFO:root:rank 0: eval @ epoch 26 in 47.12s: NDCG@10 0.1727, NDCG@50 0.2349, HR@10 0.3013, HR@50 0.5816, MRR 0.1495
+INFO:root:rank 0:  batch-stat (eval): iter 1300 (epoch 27): NDCG@10 0.2222, HR@10 0.3906, HR@50 0.6641, MRR 0.1904 
+INFO:root: rank: 0, batch-stat (train): step 1300 (epoch 27 in 44.92s): 2.117129
+INFO:root:rank 0: eval @ epoch 27 in 47.05s: NDCG@10 0.1728, NDCG@50 0.2341, HR@10 0.3076, HR@50 0.5834, MRR 0.1477
+INFO:root:rank 0: eval @ epoch 28 in 46.86s: NDCG@10 0.1765, NDCG@50 0.2371, HR@10 0.3113, HR@50 0.5846, MRR 0.1512
+INFO:root:rank 0:  batch-stat (eval): iter 1400 (epoch 29): NDCG@10 0.1753, HR@10 0.3359, HR@50 0.6875, MRR 0.1472 
+INFO:root: rank: 0, batch-stat (train): step 1400 (epoch 29 in 46.21s): 2.068764
+INFO:root:rank 0: eval @ epoch 29 in 48.58s: NDCG@10 0.1711, NDCG@50 0.2339, HR@10 0.3050, HR@50 0.5879, MRR 0.1464
+INFO:root:rank 0: eval @ epoch 30 in 48.16s: NDCG@10 0.1729, NDCG@50 0.2348, HR@10 0.3055, HR@50 0.5838, MRR 0.1485
+INFO:root:rank 0:  batch-stat (eval): iter 1500 (epoch 31): NDCG@10 0.1595, HR@10 0.2891, HR@50 0.5391, MRR 0.1361 
+INFO:root: rank: 0, batch-stat (train): step 1500 (epoch 31 in 46.99s): 2.199401
+INFO:root:rank 0: eval @ epoch 31 in 47.96s: NDCG@10 0.1755, NDCG@50 0.2364, HR@10 0.3106, HR@50 0.5849, MRR 0.1502
+INFO:root:rank 0: eval @ epoch 32 in 47.11s: NDCG@10 0.1740, NDCG@50 0.2362, HR@10 0.3094, HR@50 0.5899, MRR 0.1487
+INFO:root:rank 0:  batch-stat (eval): iter 1600 (epoch 33): NDCG@10 0.2287, HR@10 0.4062, HR@50 0.6797, MRR 0.1906 
+INFO:root: rank: 0, batch-stat (train): step 1600 (epoch 33 in 49.45s): 2.068484
+INFO:root:rank 0: eval @ epoch 33 in 47.08s: NDCG@10 0.1749, NDCG@50 0.2364, HR@10 0.3101, HR@50 0.5863, MRR 0.1499
+INFO:root:rank 0: eval @ epoch 34 in 46.72s: NDCG@10 0.1746, NDCG@50 0.2362, HR@10 0.3113, HR@50 0.5892, MRR 0.1489
+INFO:root:rank 0:  batch-stat (eval): iter 1700 (epoch 35): NDCG@10 0.1667, HR@10 0.3281, HR@50 0.6016, MRR 0.1341 
+INFO:root: rank: 0, batch-stat (train): step 1700 (epoch 35 in 49.87s): 2.063405
+INFO:root:rank 0: eval @ epoch 35 in 47.14s: NDCG@10 0.1756, NDCG@50 0.2363, HR@10 0.3147, HR@50 0.5889, MRR 0.1489
+INFO:root:rank 0: eval @ epoch 36 in 47.16s: NDCG@10 0.1782, NDCG@50 0.2396, HR@10 0.3132, HR@50 0.5911, MRR 0.1529
+INFO:root:rank 0:  batch-stat (eval): iter 1800 (epoch 37): NDCG@10 0.2286, HR@10 0.3438, HR@50 0.6797, MRR 0.2088 
+INFO:root: rank: 0, batch-stat (train): step 1800 (epoch 37 in 48.92s): 2.001413
+INFO:root:rank 0: eval @ epoch 37 in 46.86s: NDCG@10 0.1745, NDCG@50 0.2368, HR@10 0.3063, HR@50 0.5851, MRR 0.1506
+INFO:root:rank 0: eval @ epoch 38 in 47.04s: NDCG@10 0.1773, NDCG@50 0.2383, HR@10 0.3152, HR@50 0.5901, MRR 0.1511
+INFO:root:rank 0:  batch-stat (eval): iter 1900 (epoch 39): NDCG@10 0.1913, HR@10 0.3672, HR@50 0.6406, MRR 0.1541 
+INFO:root: rank: 0, batch-stat (train): step 1900 (epoch 39 in 49.79s): 2.087446
+INFO:root:rank 0: eval @ epoch 39 in 47.39s: NDCG@10 0.1796, NDCG@50 0.2398, HR@10 0.3194, HR@50 0.5925, MRR 0.1524
+INFO:root:rank 0: eval @ epoch 40 in 46.72s: NDCG@10 0.1796, NDCG@50 0.2403, HR@10 0.3177, HR@50 0.5907, MRR 0.1532
+INFO:root:rank 0:  batch-stat (eval): iter 2000 (epoch 41): NDCG@10 0.1762, HR@10 0.3125, HR@50 0.6328, MRR 0.1528 
+INFO:root: rank: 0, batch-stat (train): step 2000 (epoch 41 in 51.00s): 2.103308
+INFO:root:rank 0: eval @ epoch 41 in 47.42s: NDCG@10 0.1778, NDCG@50 0.2381, HR@10 0.3161, HR@50 0.5886, MRR 0.1513
+INFO:root:rank 0: eval @ epoch 42 in 47.41s: NDCG@10 0.1766, NDCG@50 0.2382, HR@10 0.3141, HR@50 0.5906, MRR 0.1508
+INFO:root:rank 0:  batch-stat (eval): iter 2100 (epoch 43): NDCG@10 0.1845, HR@10 0.3438, HR@50 0.6875, MRR 0.1524 
+INFO:root: rank: 0, batch-stat (train): step 2100 (epoch 43 in 52.00s): 2.032275
+INFO:root:rank 0: eval @ epoch 43 in 47.16s: NDCG@10 0.1790, NDCG@50 0.2395, HR@10 0.3207, HR@50 0.5935, MRR 0.1516
+INFO:root:rank 0: eval @ epoch 44 in 47.11s: NDCG@10 0.1767, NDCG@50 0.2387, HR@10 0.3146, HR@50 0.5947, MRR 0.1505
+INFO:root:rank 0:  batch-stat (eval): iter 2200 (epoch 45): NDCG@10 0.1854, HR@10 0.3438, HR@50 0.6328, MRR 0.1531 
+INFO:root: rank: 0, batch-stat (train): step 2200 (epoch 45 in 52.28s): 2.063440
+INFO:root:rank 0: eval @ epoch 45 in 46.89s: NDCG@10 0.1788, NDCG@50 0.2397, HR@10 0.3161, HR@50 0.5892, MRR 0.1529
+INFO:root:rank 0: eval @ epoch 46 in 47.08s: NDCG@10 0.1803, NDCG@50 0.2408, HR@10 0.3202, HR@50 0.5932, MRR 0.1533
+INFO:root:rank 0:  batch-stat (eval): iter 2300 (epoch 47): NDCG@10 0.1759, HR@10 0.3281, HR@50 0.6484, MRR 0.1466 
+INFO:root: rank: 0, batch-stat (train): step 2300 (epoch 47 in 52.80s): 2.100161
+INFO:root:rank 0: eval @ epoch 47 in 47.21s: NDCG@10 0.1782, NDCG@50 0.2398, HR@10 0.3131, HR@50 0.5884, MRR 0.1532
+INFO:root:rank 0: eval @ epoch 48 in 46.96s: NDCG@10 0.1794, NDCG@50 0.2400, HR@10 0.3199, HR@50 0.5937, MRR 0.1522
+INFO:root:rank 0: eval @ epoch 49 in 47.23s: NDCG@10 0.1806, NDCG@50 0.2405, HR@10 0.3225, HR@50 0.5927, MRR 0.1530
+INFO:root:rank 0:  batch-stat (eval): iter 2400 (epoch 50): NDCG@10 0.2107, HR@10 0.3828, HR@50 0.6641, MRR 0.1741 
+INFO:root: rank: 0, batch-stat (train): step 2400 (epoch 50 in 44.30s): 1.944149
+INFO:root:rank 0: eval @ epoch 50 in 47.26s: NDCG@10 0.1804, NDCG@50 0.2413, HR@10 0.3232, HR@50 0.5970, MRR 0.1527
+INFO:root:rank 0: eval @ epoch 51 in 47.11s: NDCG@10 0.1802, NDCG@50 0.2410, HR@10 0.3212, HR@50 0.5944, MRR 0.1530
+INFO:root:rank 0:  batch-stat (eval): iter 2500 (epoch 52): NDCG@10 0.2129, HR@10 0.3828, HR@50 0.7031, MRR 0.1785 
+INFO:root: rank: 0, batch-stat (train): step 2500 (epoch 52 in 45.29s): 2.063449
+INFO:root:rank 0: eval @ epoch 52 in 46.71s: NDCG@10 0.1792, NDCG@50 0.2399, HR@10 0.3161, HR@50 0.5876, MRR 0.1535
+INFO:root:rank 0: eval @ epoch 53 in 47.26s: NDCG@10 0.1822, NDCG@50 0.2427, HR@10 0.3219, HR@50 0.5937, MRR 0.1554
+INFO:root:rank 0:  batch-stat (eval): iter 2600 (epoch 54): NDCG@10 0.2047, HR@10 0.3438, HR@50 0.6875, MRR 0.1808 
+INFO:root: rank: 0, batch-stat (train): step 2600 (epoch 54 in 45.78s): 2.000261
+INFO:root:rank 0: eval @ epoch 54 in 47.01s: NDCG@10 0.1838, NDCG@50 0.2435, HR@10 0.3276, HR@50 0.5960, MRR 0.1555
+INFO:root:rank 0: eval @ epoch 55 in 46.34s: NDCG@10 0.1840, NDCG@50 0.2442, HR@10 0.3219, HR@50 0.5927, MRR 0.1575
+INFO:root:rank 0:  batch-stat (eval): iter 2700 (epoch 56): NDCG@10 0.1607, HR@10 0.3203, HR@50 0.6094, MRR 0.1281 
+INFO:root: rank: 0, batch-stat (train): step 2700 (epoch 56 in 46.48s): 2.125011
+INFO:root:rank 0: eval @ epoch 56 in 46.03s: NDCG@10 0.1853, NDCG@50 0.2441, HR@10 0.3300, HR@50 0.5934, MRR 0.1568
+INFO:root:rank 0: eval @ epoch 57 in 46.21s: NDCG@10 0.1825, NDCG@50 0.2422, HR@10 0.3233, HR@50 0.5919, MRR 0.1552
+INFO:root:rank 0:  batch-stat (eval): iter 2800 (epoch 58): NDCG@10 0.1764, HR@10 0.3047, HR@50 0.6172, MRR 0.1529 
+INFO:root: rank: 0, batch-stat (train): step 2800 (epoch 58 in 46.93s): 2.042071
+INFO:root:rank 0: eval @ epoch 58 in 46.28s: NDCG@10 0.1816, NDCG@50 0.2411, HR@10 0.3250, HR@50 0.5925, MRR 0.1534
+INFO:root:rank 0: eval @ epoch 59 in 46.22s: NDCG@10 0.1815, NDCG@50 0.2419, HR@10 0.3212, HR@50 0.5916, MRR 0.1547
+INFO:root:rank 0:  batch-stat (eval): iter 2900 (epoch 60): NDCG@10 0.1681, HR@10 0.3516, HR@50 0.6562, MRR 0.1304 
+INFO:root: rank: 0, batch-stat (train): step 2900 (epoch 60 in 47.92s): 2.065830
+INFO:root:rank 0: eval @ epoch 60 in 46.33s: NDCG@10 0.1827, NDCG@50 0.2433, HR@10 0.3242, HR@50 0.5967, MRR 0.1554
+INFO:root:rank 0: eval @ epoch 61 in 46.48s: NDCG@10 0.1844, NDCG@50 0.2442, HR@10 0.3258, HR@50 0.5942, MRR 0.1568
+INFO:root:rank 0:  batch-stat (eval): iter 3000 (epoch 62): NDCG@10 0.2136, HR@10 0.3828, HR@50 0.6719, MRR 0.1775 
+INFO:root: rank: 0, batch-stat (train): step 3000 (epoch 62 in 48.36s): 1.951324
+INFO:root:rank 0: eval @ epoch 62 in 46.45s: NDCG@10 0.1855, NDCG@50 0.2460, HR@10 0.3227, HR@50 0.5940, MRR 0.1594
+INFO:root:rank 0: eval @ epoch 63 in 46.56s: NDCG@10 0.1837, NDCG@50 0.2434, HR@10 0.3260, HR@50 0.5944, MRR 0.1557
+INFO:root:rank 0:  batch-stat (eval): iter 3100 (epoch 64): NDCG@10 0.1674, HR@10 0.3359, HR@50 0.5859, MRR 0.1314 
+INFO:root: rank: 0, batch-stat (train): step 3100 (epoch 64 in 49.35s): 2.002935
+INFO:root:rank 0: eval @ epoch 64 in 46.22s: NDCG@10 0.1841, NDCG@50 0.2438, HR@10 0.3252, HR@50 0.5934, MRR 0.1565
+INFO:root:rank 0: eval @ epoch 65 in 46.20s: NDCG@10 0.1837, NDCG@50 0.2438, HR@10 0.3253, HR@50 0.5964, MRR 0.1560
+INFO:root:rank 0:  batch-stat (eval): iter 3200 (epoch 66): NDCG@10 0.2176, HR@10 0.4062, HR@50 0.7188, MRR 0.1805 
+INFO:root: rank: 0, batch-stat (train): step 3200 (epoch 66 in 50.02s): 1.953016
+INFO:root:rank 0: eval @ epoch 66 in 46.16s: NDCG@10 0.1840, NDCG@50 0.2446, HR@10 0.3242, HR@50 0.5950, MRR 0.1571
+INFO:root:rank 0: eval @ epoch 67 in 45.97s: NDCG@10 0.1824, NDCG@50 0.2430, HR@10 0.3238, HR@50 0.5952, MRR 0.1550
+INFO:root:rank 0:  batch-stat (eval): iter 3300 (epoch 68): NDCG@10 0.1946, HR@10 0.3906, HR@50 0.6797, MRR 0.1531 
+INFO:root: rank: 0, batch-stat (train): step 3300 (epoch 68 in 50.78s): 2.058354
+INFO:root:rank 0: eval @ epoch 68 in 46.06s: NDCG@10 0.1837, NDCG@50 0.2436, HR@10 0.3247, HR@50 0.5932, MRR 0.1564
+INFO:root:rank 0: eval @ epoch 69 in 46.08s: NDCG@10 0.1876, NDCG@50 0.2472, HR@10 0.3268, HR@50 0.5944, MRR 0.1606
+INFO:root:rank 0:  batch-stat (eval): iter 3400 (epoch 70): NDCG@10 0.2059, HR@10 0.3359, HR@50 0.6016, MRR 0.1813 
+INFO:root: rank: 0, batch-stat (train): step 3400 (epoch 70 in 51.51s): 2.085601
+INFO:root:rank 0: eval @ epoch 70 in 46.10s: NDCG@10 0.1845, NDCG@50 0.2446, HR@10 0.3247, HR@50 0.5939, MRR 0.1575
+INFO:root:rank 0: eval @ epoch 71 in 46.15s: NDCG@10 0.1834, NDCG@50 0.2436, HR@10 0.3238, HR@50 0.5940, MRR 0.1563
+INFO:root:rank 0:  batch-stat (eval): iter 3500 (epoch 72): NDCG@10 0.2119, HR@10 0.3281, HR@50 0.5781, MRR 0.1899 
+INFO:root: rank: 0, batch-stat (train): step 3500 (epoch 72 in 51.92s): 2.084491
+INFO:root:rank 0: eval @ epoch 72 in 46.33s: NDCG@10 0.1862, NDCG@50 0.2451, HR@10 0.3278, HR@50 0.5935, MRR 0.1582
+INFO:root:rank 0: eval @ epoch 73 in 46.54s: NDCG@10 0.1831, NDCG@50 0.2441, HR@10 0.3214, HR@50 0.5955, MRR 0.1567
+INFO:root:rank 0: eval @ epoch 74 in 46.35s: NDCG@10 0.1811, NDCG@50 0.2422, HR@10 0.3214, HR@50 0.5964, MRR 0.1540
+INFO:root:rank 0:  batch-stat (eval): iter 3600 (epoch 75): NDCG@10 0.1766, HR@10 0.3125, HR@50 0.6328, MRR 0.1529 
+INFO:root: rank: 0, batch-stat (train): step 3600 (epoch 75 in 44.12s): 1.986932
+INFO:root:rank 0: eval @ epoch 75 in 46.08s: NDCG@10 0.1840, NDCG@50 0.2440, HR@10 0.3257, HR@50 0.5947, MRR 0.1565
+INFO:root:rank 0: eval @ epoch 76 in 46.11s: NDCG@10 0.1834, NDCG@50 0.2438, HR@10 0.3240, HR@50 0.5957, MRR 0.1561
+INFO:root:rank 0:  batch-stat (eval): iter 3700 (epoch 77): NDCG@10 0.2439, HR@10 0.4219, HR@50 0.7656, MRR 0.2107 
+INFO:root: rank: 0, batch-stat (train): step 3700 (epoch 77 in 44.55s): 1.982886
+INFO:root:rank 0: eval @ epoch 77 in 45.76s: NDCG@10 0.1858, NDCG@50 0.2456, HR@10 0.3272, HR@50 0.5955, MRR 0.1583
+INFO:root:rank 0: eval @ epoch 78 in 46.22s: NDCG@10 0.1845, NDCG@50 0.2443, HR@10 0.3272, HR@50 0.5947, MRR 0.1567
+INFO:root:rank 0:  batch-stat (eval): iter 3800 (epoch 79): NDCG@10 0.2019, HR@10 0.3359, HR@50 0.6641, MRR 0.1787 
+INFO:root: rank: 0, batch-stat (train): step 3800 (epoch 79 in 45.78s): 1.935568
+INFO:root:rank 0: eval @ epoch 79 in 46.65s: NDCG@10 0.1866, NDCG@50 0.2454, HR@10 0.3281, HR@50 0.5930, MRR 0.1588
+INFO:root:rank 0: eval @ epoch 80 in 45.97s: NDCG@10 0.1856, NDCG@50 0.2450, HR@10 0.3301, HR@50 0.5980, MRR 0.1568
+INFO:root:rank 0:  batch-stat (eval): iter 3900 (epoch 81): NDCG@10 0.1880, HR@10 0.3594, HR@50 0.6953, MRR 0.1563 
+INFO:root: rank: 0, batch-stat (train): step 3900 (epoch 81 in 46.44s): 1.915888
+INFO:root:rank 0: eval @ epoch 81 in 46.28s: NDCG@10 0.1827, NDCG@50 0.2435, HR@10 0.3247, HR@50 0.5985, MRR 0.1550
+INFO:root:rank 0: eval @ epoch 82 in 45.87s: NDCG@10 0.1833, NDCG@50 0.2435, HR@10 0.3260, HR@50 0.5974, MRR 0.1553
+INFO:root:rank 0:  batch-stat (eval): iter 4000 (epoch 83): NDCG@10 0.2127, HR@10 0.3594, HR@50 0.6953, MRR 0.1847 
+INFO:root: rank: 0, batch-stat (train): step 4000 (epoch 83 in 47.39s): 2.020061
+INFO:root:rank 0: eval @ epoch 83 in 46.43s: NDCG@10 0.1827, NDCG@50 0.2434, HR@10 0.3217, HR@50 0.5934, MRR 0.1562
+INFO:root:rank 0: eval @ epoch 84 in 46.20s: NDCG@10 0.1849, NDCG@50 0.2459, HR@10 0.3263, HR@50 0.6005, MRR 0.1574
+INFO:root:rank 0:  batch-stat (eval): iter 4100 (epoch 85): NDCG@10 0.2560, HR@10 0.4297, HR@50 0.7109, MRR 0.2222 
+INFO:root: rank: 0, batch-stat (train): step 4100 (epoch 85 in 48.04s): 1.964342
+INFO:root:rank 0: eval @ epoch 85 in 46.16s: NDCG@10 0.1841, NDCG@50 0.2452, HR@10 0.3217, HR@50 0.5940, MRR 0.1581
+INFO:root:rank 0: eval @ epoch 86 in 46.11s: NDCG@10 0.1833, NDCG@50 0.2444, HR@10 0.3233, HR@50 0.5977, MRR 0.1564
+INFO:root:rank 0:  batch-stat (eval): iter 4200 (epoch 87): NDCG@10 0.2104, HR@10 0.3672, HR@50 0.6250, MRR 0.1778 
+INFO:root: rank: 0, batch-stat (train): step 4200 (epoch 87 in 48.03s): 2.059063
+INFO:root:rank 0: eval @ epoch 87 in 46.30s: NDCG@10 0.1822, NDCG@50 0.2441, HR@10 0.3200, HR@50 0.5969, MRR 0.1562
+INFO:root:rank 0: eval @ epoch 88 in 46.08s: NDCG@10 0.1836, NDCG@50 0.2439, HR@10 0.3270, HR@50 0.5978, MRR 0.1555
+INFO:root:rank 0:  batch-stat (eval): iter 4300 (epoch 89): NDCG@10 0.1969, HR@10 0.3750, HR@50 0.6719, MRR 0.1597 
+INFO:root: rank: 0, batch-stat (train): step 4300 (epoch 89 in 49.43s): 2.033636
+INFO:root:rank 0: eval @ epoch 89 in 46.20s: NDCG@10 0.1856, NDCG@50 0.2453, HR@10 0.3296, HR@50 0.5980, MRR 0.1572
+INFO:root:rank 0: eval @ epoch 90 in 46.03s: NDCG@10 0.1838, NDCG@50 0.2454, HR@10 0.3225, HR@50 0.5990, MRR 0.1573
+INFO:root:rank 0:  batch-stat (eval): iter 4400 (epoch 91): NDCG@10 0.1886, HR@10 0.3750, HR@50 0.6719, MRR 0.1478 
+INFO:root: rank: 0, batch-stat (train): step 4400 (epoch 91 in 49.70s): 1.993313
+INFO:root:rank 0: eval @ epoch 91 in 46.13s: NDCG@10 0.1847, NDCG@50 0.2467, HR@10 0.3225, HR@50 0.5997, MRR 0.1588
+INFO:root:rank 0: eval @ epoch 92 in 46.12s: NDCG@10 0.1842, NDCG@50 0.2448, HR@10 0.3228, HR@50 0.5934, MRR 0.1577
+INFO:root:rank 0:  batch-stat (eval): iter 4500 (epoch 93): NDCG@10 0.2061, HR@10 0.3516, HR@50 0.6328, MRR 0.1778 
+INFO:root: rank: 0, batch-stat (train): step 4500 (epoch 93 in 50.80s): 2.131138
+INFO:root:rank 0: eval @ epoch 93 in 46.23s: NDCG@10 0.1840, NDCG@50 0.2441, HR@10 0.3252, HR@50 0.5950, MRR 0.1566
+INFO:root:rank 0: eval @ epoch 94 in 46.19s: NDCG@10 0.1872, NDCG@50 0.2462, HR@10 0.3286, HR@50 0.5934, MRR 0.1593
+INFO:root:rank 0:  batch-stat (eval): iter 4600 (epoch 95): NDCG@10 0.1847, HR@10 0.3516, HR@50 0.6562, MRR 0.1491 
+INFO:root: rank: 0, batch-stat (train): step 4600 (epoch 95 in 51.05s): 1.974037
+INFO:root:rank 0: eval @ epoch 95 in 46.04s: NDCG@10 0.1867, NDCG@50 0.2475, HR@10 0.3272, HR@50 0.5998, MRR 0.1595
+INFO:root:rank 0: eval @ epoch 96 in 46.06s: NDCG@10 0.1852, NDCG@50 0.2452, HR@10 0.3253, HR@50 0.5950, MRR 0.1579
+INFO:root:rank 0:  batch-stat (eval): iter 4700 (epoch 97): NDCG@10 0.1872, HR@10 0.3359, HR@50 0.6875, MRR 0.1610 
+INFO:root: rank: 0, batch-stat (train): step 4700 (epoch 97 in 52.04s): 2.058982
+INFO:root:rank 0: eval @ epoch 97 in 45.99s: NDCG@10 0.1863, NDCG@50 0.2469, HR@10 0.3273, HR@50 0.5995, MRR 0.1590
+INFO:root:rank 0: eval @ epoch 98 in 45.96s: NDCG@10 0.1864, NDCG@50 0.2463, HR@10 0.3293, HR@50 0.5985, MRR 0.1582
+INFO:root:rank 0: eval @ epoch 99 in 46.16s: NDCG@10 0.1857, NDCG@50 0.2455, HR@10 0.3298, HR@50 0.5982, MRR 0.1572
+INFO:root:rank 0:  batch-stat (eval): iter 4800 (epoch 100): NDCG@10 0.2325, HR@10 0.4141, HR@50 0.6797, MRR 0.1923 
+INFO:root: rank: 0, batch-stat (train): step 4800 (epoch 100 in 44.20s): 1.993670
+INFO:root:rank 0: eval @ epoch 100 in 46.59s: NDCG@10 0.1840, NDCG@50 0.2445, HR@10 0.3252, HR@50 0.5967, MRR 0.1565

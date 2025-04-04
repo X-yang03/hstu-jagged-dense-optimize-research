@@ -1,0 +1,67 @@
+INFO:root:Rank 0: loading gin config from configs/ml-1m/hstu-sampled-softmax-n128-large-final.gin
+INFO:root:cuda.matmul.allow_tf32: True
+INFO:root:cudnn.allow_tf32: True
+INFO:root:Training model on rank 0.
+Initialize _item_emb.weight as truncated normal: torch.Size([3953, 50]) params
+Skipping init for _embedding_module._item_emb.weight
+Initialize _input_features_preproc._pos_emb.weight as xavier normal: torch.Size([61, 50]) params
+Skipping init for _hstu._attention_layers.0._uvqk
+Skipping init for _hstu._attention_layers.0._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.0._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.0._o.weight
+Skipping init for _hstu._attention_layers.0._o.bias
+Skipping init for _hstu._attention_layers.1._uvqk
+Skipping init for _hstu._attention_layers.1._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.1._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.1._o.weight
+Skipping init for _hstu._attention_layers.1._o.bias
+Skipping init for _hstu._attention_layers.2._uvqk
+Skipping init for _hstu._attention_layers.2._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.2._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.2._o.weight
+Skipping init for _hstu._attention_layers.2._o.bias
+Skipping init for _hstu._attention_layers.3._uvqk
+Skipping init for _hstu._attention_layers.3._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.3._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.3._o.weight
+Skipping init for _hstu._attention_layers.3._o.bias
+Skipping init for _hstu._attention_layers.4._uvqk
+Skipping init for _hstu._attention_layers.4._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.4._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.4._o.weight
+Skipping init for _hstu._attention_layers.4._o.bias
+Skipping init for _hstu._attention_layers.5._uvqk
+Skipping init for _hstu._attention_layers.5._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.5._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.5._o.weight
+Skipping init for _hstu._attention_layers.5._o.bias
+Skipping init for _hstu._attention_layers.6._uvqk
+Skipping init for _hstu._attention_layers.6._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.6._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.6._o.weight
+Skipping init for _hstu._attention_layers.6._o.bias
+Skipping init for _hstu._attention_layers.7._uvqk
+Skipping init for _hstu._attention_layers.7._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.7._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.7._o.weight
+Skipping init for _hstu._attention_layers.7._o.bias
+INFO:root:Rank 0: writing logs to ./exps/ml-1m-l50/HSTU-b8-h2-dqk25-dv25-lsilud0.2-ad0.0_DotProduct_local-l2-eps1e-06_ssl-t0.05-n128-b8-lr0.001-wu0-wd0-2025-04-02
+INFO:root:rank 0:  batch-stat (eval): iter 0 (epoch 0): NDCG@10 0.0000, HR@10 0.0000, HR@50 0.0000, MRR 0.0012 
+INFO:root: rank: 0, batch-stat (train): step 0 (epoch 0 in 48.27s): 8.115560
+INFO:root:rank 0:  batch-stat (eval): iter 100 (epoch 0): NDCG@10 0.0000, HR@10 0.0000, HR@50 0.0000, MRR 0.0037 
+INFO:root: rank: 0, batch-stat (train): step 100 (epoch 0 in 14.97s): 4.383162
+INFO:root:rank 0:  batch-stat (eval): iter 200 (epoch 0): NDCG@10 0.0394, HR@10 0.1250, HR@50 0.1250, MRR 0.0192 
+INFO:root: rank: 0, batch-stat (train): step 200 (epoch 0 in 14.42s): 4.468835
+INFO:root:rank 0:  batch-stat (eval): iter 300 (epoch 0): NDCG@10 0.0445, HR@10 0.1250, HR@50 0.2500, MRR 0.0278 
+INFO:root: rank: 0, batch-stat (train): step 300 (epoch 0 in 14.46s): 3.734727
+INFO:root:rank 0:  batch-stat (eval): iter 400 (epoch 0): NDCG@10 0.0000, HR@10 0.0000, HR@50 0.1250, MRR 0.0136 
+INFO:root: rank: 0, batch-stat (train): step 400 (epoch 0 in 14.78s): 3.397122
+INFO:root:rank 0:  batch-stat (eval): iter 500 (epoch 0): NDCG@10 0.0000, HR@10 0.0000, HR@50 0.2500, MRR 0.0132 
+INFO:root: rank: 0, batch-stat (train): step 500 (epoch 0 in 14.69s): 3.620098
+INFO:root:rank 0:  batch-stat (eval): iter 600 (epoch 0): NDCG@10 0.0000, HR@10 0.0000, HR@50 0.3750, MRR 0.0207 
+INFO:root: rank: 0, batch-stat (train): step 600 (epoch 0 in 14.52s): 3.068587
+INFO:root:rank 0:  batch-stat (eval): iter 700 (epoch 0): NDCG@10 0.0840, HR@10 0.2500, HR@50 0.3750, MRR 0.0437 
+INFO:root: rank: 0, batch-stat (train): step 700 (epoch 0 in 14.75s): 2.639780
+INFO:root:rank 0: eval @ epoch 0 in 46.49s: NDCG@10 0.0882, NDCG@50 0.1346, HR@10 0.1656, HR@50 0.3801, MRR 0.0776
+INFO:root:rank 0:  batch-stat (eval): iter 800 (epoch 1): NDCG@10 0.1272, HR@10 0.2500, HR@50 0.5000, MRR 0.1034 
+INFO:root: rank: 0, batch-stat (train): step 800 (epoch 1 in 49.30s): 2.529154

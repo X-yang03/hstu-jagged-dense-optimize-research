@@ -43,6 +43,7 @@ from generative_recommenders.modeling.similarity_module import (
 from generative_recommenders.rails.similarities.module import SimilarityModule
 
 from fused_jagged_hstu.fused_hstu_op import FusedHSTUOp
+from fused_hstu_v2.fused_hstu_op_v2 import FusedHSTUOpv2
 
 TIMESTAMPS_KEY = "timestamps"
 
@@ -196,7 +197,7 @@ def _hstu_attention_maybe_from_cache(  #在rel_bias模式下计算注意力输�
     else: #q k 原本是[sum_N, h*dqk]，需要转换为padded形式, 变为[B, n, h*dqk]
     
         if all_timestamps is not None:
-            return FusedHSTUOp.apply(
+            return FusedHSTUOpv2.apply(
                 q,
                 k,
                 v,
@@ -209,7 +210,7 @@ def _hstu_attention_maybe_from_cache(  #在rel_bias模式下计算注意力输�
             ), None, None
         else:
             rab = torch.zeros(B, 1, n, n, device=q.device)
-            attn_output = FusedHSTUOp.apply(
+            attn_output = FusedHSTUOpv2.apply(
                 q,
                 k,
                 v,
