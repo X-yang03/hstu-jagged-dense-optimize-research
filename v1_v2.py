@@ -67,9 +67,9 @@ print('===========================================================')
 
 print('start benchmark')
 
-v1_forward_time = []
+v3_forward_time = []
 v2_forward_time = []
-v1_backward_time = []
+v3_backward_time = []
 v2_backward_time = []
 
 test_num = 10
@@ -81,11 +81,11 @@ for _ in tqdm(range(test_num)):
 
 
     start_event.record()
-    v1_attn = FusedHSTUOpv3.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
+    v3_attn = FusedHSTUOpv3.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
     # v1_attn = v2HSTUOp_.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
     end_event.record()
     torch.cuda.synchronize()
-    v1_forward_time.append(start_event.elapsed_time(end_event))
+    v3_forward_time.append(start_event.elapsed_time(end_event))
 
     start_event.record()
     v2_attn = FusedHSTUOpv2.apply(q1, k1, v1, rab, attn_mask, head, d, n, x_offsets)
@@ -93,15 +93,15 @@ for _ in tqdm(range(test_num)):
     torch.cuda.synchronize()
     v2_forward_time.append(start_event.elapsed_time(end_event))
 
-    attn_true = torch.randn_like(v1_attn)
+    attn_true = torch.randn_like(v2_attn)
 
     criterion = nn.CrossEntropyLoss()
-    loss = criterion(v1_attn, attn_true)
+    loss = criterion(v3_attn, attn_true)
     start_event.record()
     loss.backward()
     end_event.record()
     torch.cuda.synchronize()
-    v1_backward_time.append(start_event.elapsed_time(end_event))
+    v3_backward_time.append(start_event.elapsed_time(end_event))
 
     criterion1 = nn.CrossEntropyLoss()
     loss1 = criterion1(v2_attn, attn_true)
@@ -111,20 +111,20 @@ for _ in tqdm(range(test_num)):
     torch.cuda.synchronize()
     v2_backward_time.append(start_event.elapsed_time(end_event))
 
-print("avg v1 forward time: ", sum(v1_forward_time) / len(v1_forward_time))
+print("avg v1 forward time: ", sum(v3_forward_time) / len(v3_forward_time))
 print("avg v2 forward time: ", sum(v2_forward_time) / len(v2_forward_time))
-print("avg v1 backward time: ", sum(v1_backward_time) / len(v1_backward_time))
+print("avg v1 backward time: ", sum(v3_backward_time) / len(v3_backward_time))
 print("avg v2 backward time: ", sum(v2_backward_time) / len(v2_backward_time))
 
 print('===========================================================')
 
-speedup_forward = [v1_forward_time[i] / v2_forward_time[i] for i in range(len(v1_forward_time))]
-speedup_backward = [v1_backward_time[i] / v2_backward_time[i] for i in range(len(v1_backward_time))]
+speedup_forward = [v2_forward_time[i] / v3_forward_time[i] for i in range(len(v3_forward_time))]
+speedup_backward = [v2_backward_time[i] / v3_backward_time[i] for i in range(len(v3_backward_time))]
 
 print("avg forward speedup: ", sum(speedup_forward) / len(speedup_forward))
 print("avg backward speedup: ", sum(speedup_backward) / len(speedup_backward))
 print('===========================================================')
 print('benchmark done')
 
-print(v1_backward_time)
+print(v3_backward_time)
 print(v2_backward_time)

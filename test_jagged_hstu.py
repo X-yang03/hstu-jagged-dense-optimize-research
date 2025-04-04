@@ -6,6 +6,7 @@ import random
 import fbgemm_gpu
 from fused_jagged_hstu.fused_hstu_op import FusedHSTUOp
 from fused_hstu_v2.fused_hstu_op_v2 import FusedHSTUOpv2
+from fused_hstu_v3.fused_hstu_op_v3 import FusedHSTUOpv3
 
 def get_input(sum_N, head, d, B, n):
     q = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
@@ -80,7 +81,7 @@ print('warm up')
 for _ in tqdm(range(3)):
     q, k, v, rab, q1, k1, v1, rab1, attn_mask = get_input(sum_N, head, d, B, n)
     warmup_einsum_attn = origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
-    warmup_fused_attn = FusedHSTUOpv2.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
+    warmup_fused_attn = FusedHSTUOpv3.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
 print('warm up done')
 
 print('===========================================================')
@@ -101,7 +102,7 @@ for _ in tqdm(range(test_num)):
 
     einsum_attn = origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets)
 
-    fused_attn = FusedHSTUOpv2.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
+    fused_attn = FusedHSTUOpv3.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
 
 
     #print("forward pass check: ", torch.allclose(einsum_attn, fused_attn, atol=1e-4))

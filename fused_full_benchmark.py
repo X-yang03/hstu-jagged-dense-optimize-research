@@ -8,6 +8,7 @@ import torch.profiler
 from fused_jagged_hstu.fused_hstu_op import FusedHSTUOp
 from fused_jagged_hstu.fused_simpler_op import FusedHSTUOp_
 from fused_hstu_v2.fused_hstu_op_v2 import FusedHSTUOpv2
+from fused_hstu_v3.fused_hstu_op_v3 import FusedHSTUOpv3
 from fused_jagged_hstu.torch_backward import CustomAttentionFunction
 
 def get_input(sum_N, head, d, B, n):
@@ -86,7 +87,7 @@ for _ in tqdm(range(3)):
     #warmup_einsum_attn = FusedHSTUOp_.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
     loss = warmup_einsum_attn.sum()
     loss.backward()
-    warmup_fused_attn = FusedHSTUOpv2.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
+    warmup_fused_attn = FusedHSTUOpv3.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
     loss1 = warmup_fused_attn.sum()
     loss1.backward()
 print('warm up done')
@@ -116,7 +117,7 @@ for _ in tqdm(range(test_num)):
     einsum_forward_time.append(start_event.elapsed_time(end_event))
 
     start_event.record()
-    fused_attn = FusedHSTUOpv2.apply(q1, k1, v1, rab, attn_mask, head, d, n, x_offsets)
+    fused_attn = FusedHSTUOpv3.apply(q1, k1, v1, rab, attn_mask, head, d, n, x_offsets)
     end_event.record()
     torch.cuda.synchronize()
     fused_forward_time.append(start_event.elapsed_time(end_event))
@@ -154,5 +155,5 @@ print("avg backward speedup: ", sum(speedup_backward) / len(speedup_backward))
 print('===========================================================')
 print('benchmark done')
 
-print(einsum_backward_time)
-print(fused_backward_time)
+# print(einsum_backward_time)
+# print(fused_backward_time)
