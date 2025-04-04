@@ -22,13 +22,13 @@ def fused_backward_kernel(
     attn_mask_ptr,
     x_offsets_ptr,
     B, H, N, D :tl.constexpr,
-    stride_kh, stride_kn, stride_kd,
-    stride_qh, stride_qn, stride_qd,
-    stride_vh, stride_vn, stride_vd,
+    stride_kn, stride_kh, stride_kd,
+    stride_qn, stride_qh, stride_qd,
+    stride_vn, stride_vh, stride_vd,
     stride_rab_b, stride_rab_h, stride_rab_n, stride_rab_m,
     stride_drab_b, stride_drab_h, stride_drab_n, stride_drab_m,
     stride_mask_n, stride_mask_m,
-    stride_out_h, stride_out_n, stride_out_d,
+    stride_out_n, stride_out_h, stride_out_d,
     BLOCK_SIZE_N: tl.constexpr
     ):
     pid_h = tl.program_id(0)
@@ -46,26 +46,21 @@ def fused_backward_kernel(
 
         mask_kv = (block_kv + tl.arange(0, BLOCK_SIZE_N))[:,None] < len_sample
 
-        k_ptrs = K_ptr + pid_h * stride_kh + start * stride_kn +\
-                    block_kv * stride_kn + \
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kn + \
+        k_ptrs = K_ptr + start * stride_kn + block_kv * stride_kn + pid_h * stride_kh +\
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kh * H + \
                     tl.arange(0, D)[None, :] * stride_kd
-            #手写pointers, k与v仍然是(BLOCK_N,D)的形状
-        v_ptrs = V_ptr + pid_h * stride_vh + start * stride_vn +\
-                block_kv * stride_vn + \
-                tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vn + \
+
+        v_ptrs = V_ptr + start * stride_vn + block_kv * stride_vn + pid_h * stride_vh +\
+                tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vh * H + \
                 tl.arange(0, D)[None, :] * stride_vd
 
-        dk_ptrs = dK_ptr + pid_h * stride_kh + start * stride_kn +\
-                block_kv * stride_kn + \
-                tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kn + \
-                tl.arange(0, D)[None, :] * stride_kd
-        
-        dv_ptrs = dV_ptr + pid_h * stride_vh + start * stride_vn +\
-                block_kv * stride_vn + \
-                tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vn + \
-                tl.arange(0, D)[None, :] * stride_vd
+        dk_ptrs = dK_ptr + start * stride_kn + block_kv * stride_kn + pid_h * stride_kh +\
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kh * H + \
+                    tl.arange(0, D)[None, :] * stride_kd
 
+        dv_ptrs = dV_ptr + start * stride_vn + block_kv * stride_vn + pid_h * stride_vh +\
+                tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vh * H + \
+                tl.arange(0, D)[None, :] * stride_vd
         
         k = tl.load(k_ptrs, mask=mask_kv, other=0)
         v = tl.load(v_ptrs, mask=mask_kv, other=0)
@@ -85,22 +80,19 @@ def fused_backward_kernel(
             mask = (block_q + tl.arange(0, BLOCK_SIZE_N))[:,None] < len_sample
             rab = tl.load(rab_ptrs, mask = mask & mask_kv.T, other=0)
 
-            q_ptrs = Q_ptr + pid_h * stride_qh + start * stride_qn +\
-                        block_q * stride_qn + \
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_qn + \
+            q_ptrs = Q_ptr + start * stride_qn + block_q * stride_qn + pid_h * stride_qh +\
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_qh * H + \
                     tl.arange(0, D)[None, :] * stride_qd
+            
             q = tl.load(q_ptrs, mask=mask, other=0)
             #q = tl.load(q_ptrs)
-
-            dq_ptrs = dQ_ptr + pid_h * stride_qh + start * stride_qn +\
-                    block_q * stride_qn + \
-                tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_qn + \
-                tl.arange(0, D)[None, :] * stride_qd
+            dq_ptrs = dQ_ptr + start * stride_qn + block_q * stride_qn + pid_h * stride_qh +\
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_qh * H + \
+                    tl.arange(0, D)[None, :] * stride_qd
             
-            do_ptrs = dOut_ptr + pid_h * stride_out_h + start * stride_out_n +\
-                    block_q * stride_out_n + \
-                tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_out_n + \
-                tl.arange(0, D)[None, :] * stride_out_d
+            do_ptrs = dOut_ptr + start * stride_out_n + block_q * stride_out_n + pid_h * stride_out_h +\
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_out_h * H + \
+                    tl.arange(0, D)[None, :] * stride_out_d
             
             d_q = tl.load(dq_ptrs, mask=mask, other=0)
             d_o = tl.load(do_ptrs, mask=mask, other=0)
@@ -119,16 +111,6 @@ def fused_backward_kernel(
 
                 
             if block_kv == block_q:  #mask的处理方式
-            # 因为mask是下三角的1矩阵，当block_kv < block_q时，不用做任何处理
-            # 当block_kv == block_q时，需要将qk与mask相乘
-                # mask_ptrs = tl.make_block_ptr(
-                #     base = attn_mask_ptr,
-                #     shape = (N, N),
-                #     strides = (stride_mask_n, stride_mask_m),
-                #     offsets = (block_q , block_kv),
-                #     block_shape = (BLOCK_SIZE_N, BLOCK_SIZE_N),
-                #     order = (0, 1)
-                # )
                 mask_ptrs = attn_mask_ptr + block_q * stride_mask_n + block_kv * stride_mask_m +\
                             tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_mask_n +\
                             tl.arange(0, BLOCK_SIZE_N)[None,:] * stride_mask_m
@@ -158,13 +140,6 @@ def fused_backward_kernel(
 
 
 def fused_backward_simpler(d_attn, q, k, v, rab, attn_mask, head, dim, n, x_offsets):
-    # d_attn : (sum_N, num_heads*d)
-    # sum_N, _ = d_attn.shape
-    # d_attn = d_attn.view(sum_N, head, dim).permute(1, 0, 2).contiguous()
-    # #attn = attn.view(sum_N, head, dim).permute(1, 0, 2).contiguous()
-    # q = q.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
-    # k = k.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d)
-    # v = v.view(sum_N, head, dim).permute(1, 0, 2).contiguous() # (head, sum_N, d
 
     B = x_offsets.shape[0] - 1
     d_q = torch.zeros_like(q)

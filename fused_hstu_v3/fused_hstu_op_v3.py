@@ -12,9 +12,9 @@ class FusedHSTUOpv3(torch.autograd.Function):
     @staticmethod
     def forward(ctx, q, k, v, rab, attn_mask, head, dim, n, x_offsets):
         sum_N, _ = q.shape
-        q = q.view(sum_N, head, dim).contiguous() # (head, sum_N, d)
-        k = k.view(sum_N, head, dim).contiguous() # (head, sum_N, d)
-        v = v.view(sum_N, head, dim).contiguous() # (head, sum_N, d
+        q = q.view(sum_N, head, dim)  # (head, sum_N, d)
+        k = k.view(sum_N, head, dim)  # (head, sum_N, d)
+        v = v.view(sum_N, head, dim)  # (head, sum_N, d
         pad_len = triton.next_power_of_2(dim) - dim
 
         if  pad_len != 0:
@@ -36,9 +36,9 @@ class FusedHSTUOpv3(torch.autograd.Function):
             return fused_jagged_hstu(q, k, v, rab, attn_mask, head, dim, n, x_offsets)[:,:,:(-pad_len)].contiguous().view(sum_N, head*(dim-pad_len))
 
         else:
-            return fused_jagged_hstu(q, k, v, rab, attn_mask, head, dim, n, x_offsets).contiguous().view(sum_N, head*dim)
+            return fused_jagged_hstu(q, k, v, rab, attn_mask, head, dim, n, x_offsets).view(sum_N, head*dim)
 
-        #return fused_jagged_hstu(q, k, v, rab, attn_mask, head, dim, n, x_offsets).permute(1, 0, 2)[:,:,:(-pad_len)].contiguous().view(sum_N, head*(dim-pad_len))
+        #return fused_jagged_hstu(q, k, v, rab, attn_mask, head, dim, n, x_offsets).permute(1, 0, 2)[:,:,:(-pad_len)] .view(sum_N, head*(dim-pad_len))
 
     @staticmethod
     def backward(ctx, grad_output):
@@ -52,7 +52,7 @@ class FusedHSTUOpv3(torch.autograd.Function):
         #("grad_output shape: ", grad_output.shape)
         sum_N, _ = grad_output.shape
         
-        grad_output = grad_output.view(sum_N, head, (dim - pad_len)).permute(1, 0, 2).contiguous()
+        grad_output = grad_output.view(sum_N, head, (dim - pad_len)) 
         #print("grad",grad_output[0,0,:])
 
         if pad_len != 0:
@@ -64,13 +64,13 @@ class FusedHSTUOpv3(torch.autograd.Function):
 
         
         if pad_len != 0:
-            grad_q = grad_q.permute(1, 0, 2)[:, :, :(-pad_len)].contiguous().view(sum_N, head*(dim - pad_len))
-            grad_k = grad_k.permute(1, 0, 2)[:, :, :(-pad_len)].contiguous().view(sum_N, head*(dim - pad_len))
-            grad_v = grad_v.permute(1, 0, 2)[:, :, :(-pad_len)].contiguous().view(sum_N, head*(dim - pad_len))
+            grad_q = grad_q[:, :, :(-pad_len)].contiguous().view(sum_N, head*(dim - pad_len))
+            grad_k = grad_k[:, :, :(-pad_len)].contiguous().view(sum_N, head*(dim - pad_len))
+            grad_v = grad_v[:, :, :(-pad_len)].contiguous().view(sum_N, head*(dim - pad_len))
         else:
-            grad_q = grad_q.permute(1, 0, 2).contiguous().view(sum_N, head*dim)
-            grad_k = grad_k.permute(1, 0, 2).contiguous().view(sum_N, head*dim)
-            grad_v = grad_v.permute(1, 0, 2).contiguous().view(sum_N, head*dim)
+            grad_q = grad_q.view(sum_N, head*dim)
+            grad_k = grad_k.view(sum_N, head*dim)
+            grad_v = grad_v.view(sum_N, head*dim)
 
 
         return grad_q, grad_k, grad_v, grad_rab, None, None, None, None, None
