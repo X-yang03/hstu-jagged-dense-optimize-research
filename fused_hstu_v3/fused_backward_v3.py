@@ -42,8 +42,6 @@ def fused_backward_kernel(
     len_sample = (end - start).to(tl.int32)
 
     for block_kv in range(0, len_sample, BLOCK_SIZE_N):  #load  K_i V_i
-        k = tl.zeros((BLOCK_SIZE_N, D), dtype=tl.float32)
-        v = tl.zeros((BLOCK_SIZE_N, D), dtype=tl.float32)
         d_k = tl.zeros((BLOCK_SIZE_N, D), dtype=tl.float32)
         d_v = tl.zeros((BLOCK_SIZE_N, D), dtype=tl.float32)
 
