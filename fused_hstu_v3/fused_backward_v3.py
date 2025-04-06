@@ -23,8 +23,11 @@ def fused_backward_kernel(
     x_offsets_ptr,
     B, H, N, D :tl.constexpr,
     stride_kn, stride_kh, stride_kd,
+    stride_dkn, stride_dkh, stride_dkd,
     stride_qn, stride_qh, stride_qd,
+    stride_dqn, stride_dqh, stride_dqd,
     stride_vn, stride_vh, stride_vd,
+    stride_dvn, stride_dvh, stride_dvd,
     stride_rab_b, stride_rab_h, stride_rab_n, stride_rab_m,
     stride_drab_b, stride_drab_h, stride_drab_n, stride_drab_m,
     stride_mask_n, stride_mask_m,
@@ -54,13 +57,13 @@ def fused_backward_kernel(
                 tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vn + \
                 tl.arange(0, D)[None, :] * stride_vd
 
-        dk_ptrs = dK_ptr + start * stride_kn + block_kv * stride_kn + pid_h * stride_kh +\
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_kn + \
-                    tl.arange(0, D)[None, :] * stride_kd
+        dk_ptrs = dK_ptr + start * stride_dkn + block_kv * stride_dkn + pid_h * stride_dkh +\
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_dkn + \
+                    tl.arange(0, D)[None, :] * stride_dkd
 
-        dv_ptrs = dV_ptr + start * stride_vn + block_kv * stride_vn + pid_h * stride_vh +\
-                tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_vn + \
-                tl.arange(0, D)[None, :] * stride_vd
+        dv_ptrs = dV_ptr + start * stride_dvn + block_kv * stride_dvn + pid_h * stride_dvh +\
+                tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_dvn + \
+                tl.arange(0, D)[None, :] * stride_dvd
         
         k = tl.load(k_ptrs, mask=mask_kv, other=0)
         v = tl.load(v_ptrs, mask=mask_kv, other=0)
@@ -86,9 +89,9 @@ def fused_backward_kernel(
             
             q = tl.load(q_ptrs, mask=mask, other=0)
             #q = tl.load(q_ptrs)
-            dq_ptrs = dQ_ptr + start * stride_qn + block_q * stride_qn + pid_h * stride_qh +\
-                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_qn + \
-                    tl.arange(0, D)[None, :] * stride_qd
+            dq_ptrs = dQ_ptr + start * stride_dqn + block_q * stride_dqn + pid_h * stride_dqh +\
+                    tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_dqn + \
+                    tl.arange(0, D)[None, :] * stride_dqd
             
             do_ptrs = dOut_ptr + start * stride_out_n + block_q * stride_out_n + pid_h * stride_out_h +\
                     tl.arange(0, BLOCK_SIZE_N)[:,None] * stride_out_n + \
@@ -158,8 +161,11 @@ def fused_backward_simpler(d_attn, q, k, v, rab, attn_mask, head, dim, n, x_offs
         x_offsets,
         B, head, n, dim,
         k.stride(0), k.stride(1), k.stride(2),
+        d_k.stride(0), d_k.stride(1), d_k.stride(2),
         q.stride(0), q.stride(1), q.stride(2),
+        d_q.stride(0), d_q.stride(1), d_q.stride(2),
         v.stride(0), v.stride(1), v.stride(2),
+        d_v.stride(0), d_v.stride(1), d_v.stride(2),
         rab.stride(0), rab.stride(1), rab.stride(2), rab.stride(3),
         d_rab.stride(0), d_rab.stride(1), d_rab.stride(2), d_rab.stride(3),
         attn_mask.stride(2), attn_mask.stride(3),
