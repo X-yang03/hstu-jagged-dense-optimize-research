@@ -1,0 +1,449 @@
+INFO:root:Rank 0: loading gin config from configs/ml-1m/hstu-sampled-softmax-n128-large-final.gin
+INFO:root:cuda.matmul.allow_tf32: True
+INFO:root:cudnn.allow_tf32: True
+INFO:root:Training model on rank 0.
+Initialize _item_emb.weight as truncated normal: torch.Size([3953, 50]) params
+Skipping init for _embedding_module._item_emb.weight
+Initialize _input_features_preproc._pos_emb.weight as xavier normal: torch.Size([211, 50]) params
+Skipping init for _hstu._attention_layers.0._uvqk
+Skipping init for _hstu._attention_layers.0._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.0._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.0._o.weight
+Skipping init for _hstu._attention_layers.0._o.bias
+Skipping init for _hstu._attention_layers.1._uvqk
+Skipping init for _hstu._attention_layers.1._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.1._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.1._o.weight
+Skipping init for _hstu._attention_layers.1._o.bias
+Skipping init for _hstu._attention_layers.2._uvqk
+Skipping init for _hstu._attention_layers.2._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.2._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.2._o.weight
+Skipping init for _hstu._attention_layers.2._o.bias
+Skipping init for _hstu._attention_layers.3._uvqk
+Skipping init for _hstu._attention_layers.3._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.3._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.3._o.weight
+Skipping init for _hstu._attention_layers.3._o.bias
+Skipping init for _hstu._attention_layers.4._uvqk
+Skipping init for _hstu._attention_layers.4._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.4._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.4._o.weight
+Skipping init for _hstu._attention_layers.4._o.bias
+Skipping init for _hstu._attention_layers.5._uvqk
+Skipping init for _hstu._attention_layers.5._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.5._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.5._o.weight
+Skipping init for _hstu._attention_layers.5._o.bias
+Skipping init for _hstu._attention_layers.6._uvqk
+Skipping init for _hstu._attention_layers.6._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.6._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.6._o.weight
+Skipping init for _hstu._attention_layers.6._o.bias
+Skipping init for _hstu._attention_layers.7._uvqk
+Skipping init for _hstu._attention_layers.7._rel_attn_bias._ts_w
+Skipping init for _hstu._attention_layers.7._rel_attn_bias._pos_w
+Skipping init for _hstu._attention_layers.7._o.weight
+Skipping init for _hstu._attention_layers.7._o.bias
+INFO:root:Rank 0: writing logs to ./exps/ml-1m-l200/HSTU-b8-h2-dqk25-dv25-lsilud0.2-ad0.0_DotProduct_local-l2-eps1e-06_ssl-t0.05-n128-b128-lr0.001-wu0-wd0-2025-04-08
+INFO:root:rank 0:  batch-stat (eval): iter 0 (epoch 0): NDCG@10 0.0024, HR@10 0.0078, HR@50 0.0234, MRR 0.0024 
+INFO:root: rank: 0, batch-stat (train): step 0 (epoch 0 in 3.18s): 8.277927
+INFO:root:rank 0: eval @ epoch 0 in 8.35s: NDCG@10 0.0198, NDCG@50 0.0384, HR@10 0.0401, HR@50 0.1275, MRR 0.0204
+INFO:root:rank 0: epoch 0 done in 29.57s: actual eval inference time : 1.08, actual train time : 10.51s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 1 in 1.15s: NDCG@10 0.0468, NDCG@50 0.0795, HR@10 0.0911, HR@50 0.2432, MRR 0.0434
+INFO:root:rank 0: epoch 1 done in 11.84s: actual eval inference time : 1.00, actual train time : 10.32s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 100 (epoch 2): NDCG@10 0.0458, HR@10 0.0938, HR@50 0.3047, MRR 0.0449 
+INFO:root: rank: 0, batch-stat (train): step 100 (epoch 2 in 39.29s): 3.484379
+INFO:root:rank 0: eval @ epoch 2 in 1.13s: NDCG@10 0.0748, NDCG@50 0.1214, HR@10 0.1478, HR@50 0.3614, MRR 0.0660
+INFO:root:rank 0: epoch 2 done in 11.43s: actual eval inference time : 0.99, actual train time : 9.91s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 3 in 1.12s: NDCG@10 0.1051, NDCG@50 0.1562, HR@10 0.1970, HR@50 0.4301, MRR 0.0913
+INFO:root:rank 0: epoch 3 done in 12.05s: actual eval inference time : 0.98, actual train time : 10.57s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 200 (epoch 4): NDCG@10 0.1207, HR@10 0.2266, HR@50 0.4688, MRR 0.1025 
+INFO:root: rank: 0, batch-stat (train): step 200 (epoch 4 in 24.41s): 2.697942
+INFO:root:rank 0: eval @ epoch 4 in 1.11s: NDCG@10 0.1178, NDCG@50 0.1700, HR@10 0.2180, HR@50 0.4551, MRR 0.1016
+INFO:root:rank 0: epoch 4 done in 11.72s: actual eval inference time : 0.98, actual train time : 10.22s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 5 in 1.11s: NDCG@10 0.1266, NDCG@50 0.1823, HR@10 0.2346, HR@50 0.4877, MRR 0.1088
+INFO:root:rank 0: epoch 5 done in 11.81s: actual eval inference time : 0.96, actual train time : 10.35s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 300 (epoch 6): NDCG@10 0.1447, HR@10 0.2812, HR@50 0.5547, MRR 0.1190 
+INFO:root: rank: 0, batch-stat (train): step 300 (epoch 6 in 24.60s): 2.480057
+INFO:root:rank 0: eval @ epoch 6 in 1.16s: NDCG@10 0.1352, NDCG@50 0.1915, HR@10 0.2434, HR@50 0.4997, MRR 0.1172
+INFO:root:rank 0: epoch 6 done in 11.92s: actual eval inference time : 1.02, actual train time : 10.36s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 7 in 1.80s: NDCG@10 0.1394, NDCG@50 0.1963, HR@10 0.2553, HR@50 0.5142, MRR 0.1193
+INFO:root:rank 0: epoch 7 done in 12.78s: actual eval inference time : 1.52, actual train time : 10.61s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 400 (epoch 8): NDCG@10 0.1724, HR@10 0.2969, HR@50 0.6016, MRR 0.1513 
+INFO:root: rank: 0, batch-stat (train): step 400 (epoch 8 in 25.35s): 2.300540
+INFO:root:rank 0: eval @ epoch 8 in 1.14s: NDCG@10 0.1414, NDCG@50 0.1995, HR@10 0.2550, HR@50 0.5199, MRR 0.1220
+INFO:root:rank 0: epoch 8 done in 11.89s: actual eval inference time : 1.00, actual train time : 10.34s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 9 in 1.15s: NDCG@10 0.1446, NDCG@50 0.2026, HR@10 0.2666, HR@50 0.5306, MRR 0.1226
+INFO:root:rank 0: epoch 9 done in 11.70s: actual eval inference time : 1.01, actual train time : 10.20s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 500 (epoch 10): NDCG@10 0.1279, HR@10 0.2578, HR@50 0.5234, MRR 0.1052 
+INFO:root: rank: 0, batch-stat (train): step 500 (epoch 10 in 24.30s): 2.389112
+INFO:root:rank 0: eval @ epoch 10 in 1.15s: NDCG@10 0.1522, NDCG@50 0.2108, HR@10 0.2733, HR@50 0.5402, MRR 0.1307
+INFO:root:rank 0: epoch 10 done in 11.19s: actual eval inference time : 1.01, actual train time : 9.70s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 11 in 1.17s: NDCG@10 0.1524, NDCG@50 0.2126, HR@10 0.2752, HR@50 0.5474, MRR 0.1308
+INFO:root:rank 0: epoch 11 done in 12.06s: actual eval inference time : 1.02, actual train time : 10.55s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 600 (epoch 12): NDCG@10 0.1438, HR@10 0.2969, HR@50 0.5781, MRR 0.1135 
+INFO:root: rank: 0, batch-stat (train): step 600 (epoch 12 in 24.45s): 2.467128
+INFO:root:rank 0: eval @ epoch 12 in 1.13s: NDCG@10 0.1552, NDCG@50 0.2144, HR@10 0.2762, HR@50 0.5445, MRR 0.1339
+INFO:root:rank 0: epoch 12 done in 11.79s: actual eval inference time : 1.00, actual train time : 10.27s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 13 in 1.15s: NDCG@10 0.1566, NDCG@50 0.2157, HR@10 0.2823, HR@50 0.5495, MRR 0.1339
+INFO:root:rank 0: epoch 13 done in 11.91s: actual eval inference time : 1.01, actual train time : 10.41s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 700 (epoch 14): NDCG@10 0.1645, HR@10 0.3359, HR@50 0.6797, MRR 0.1309 
+INFO:root: rank: 0, batch-stat (train): step 700 (epoch 14 in 24.86s): 2.106144
+INFO:root:rank 0: eval @ epoch 14 in 1.13s: NDCG@10 0.1600, NDCG@50 0.2184, HR@10 0.2889, HR@50 0.5538, MRR 0.1360
+INFO:root:rank 0: epoch 14 done in 12.28s: actual eval inference time : 0.99, actual train time : 10.77s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 15 in 1.18s: NDCG@10 0.1623, NDCG@50 0.2222, HR@10 0.2921, HR@50 0.5623, MRR 0.1385
+INFO:root:rank 0: epoch 15 done in 12.42s: actual eval inference time : 1.03, actual train time : 10.92s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 800 (epoch 16): NDCG@10 0.1642, HR@10 0.3359, HR@50 0.6016, MRR 0.1272 
+INFO:root: rank: 0, batch-stat (train): step 800 (epoch 16 in 25.27s): 2.282023
+INFO:root:rank 0: eval @ epoch 16 in 1.17s: NDCG@10 0.1673, NDCG@50 0.2261, HR@10 0.2965, HR@50 0.5621, MRR 0.1433
+INFO:root:rank 0: epoch 16 done in 11.88s: actual eval inference time : 1.03, actual train time : 10.40s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 17 in 1.21s: NDCG@10 0.1644, NDCG@50 0.2242, HR@10 0.2939, HR@50 0.5649, MRR 0.1404
+INFO:root:rank 0: epoch 17 done in 12.32s: actual eval inference time : 1.07, actual train time : 10.78s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 900 (epoch 18): NDCG@10 0.1626, HR@10 0.2969, HR@50 0.6484, MRR 0.1411 
+INFO:root: rank: 0, batch-stat (train): step 900 (epoch 18 in 25.28s): 2.294578
+INFO:root:rank 0: eval @ epoch 18 in 1.17s: NDCG@10 0.1682, NDCG@50 0.2264, HR@10 0.2998, HR@50 0.5626, MRR 0.1433
+INFO:root:rank 0: epoch 18 done in 12.26s: actual eval inference time : 1.03, actual train time : 10.67s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 19 in 1.19s: NDCG@10 0.1678, NDCG@50 0.2257, HR@10 0.2995, HR@50 0.5608, MRR 0.1429
+INFO:root:rank 0: epoch 19 done in 12.39s: actual eval inference time : 1.04, actual train time : 10.82s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 1000 (epoch 20): NDCG@10 0.1993, HR@10 0.3828, HR@50 0.6953, MRR 0.1583 
+INFO:root: rank: 0, batch-stat (train): step 1000 (epoch 20 in 25.79s): 2.234875
+INFO:root:rank 0: eval @ epoch 20 in 1.18s: NDCG@10 0.1715, NDCG@50 0.2300, HR@10 0.3048, HR@50 0.5714, MRR 0.1458
+INFO:root:rank 0: epoch 20 done in 12.22s: actual eval inference time : 1.04, actual train time : 10.67s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 21 in 1.16s: NDCG@10 0.1721, NDCG@50 0.2306, HR@10 0.3079, HR@50 0.5732, MRR 0.1459
+INFO:root:rank 0: epoch 21 done in 12.11s: actual eval inference time : 1.01, actual train time : 10.61s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 1100 (epoch 22): NDCG@10 0.2018, HR@10 0.3516, HR@50 0.5859, MRR 0.1695 
+INFO:root: rank: 0, batch-stat (train): step 1100 (epoch 22 in 25.11s): 2.161663
+INFO:root:rank 0: eval @ epoch 22 in 1.20s: NDCG@10 0.1717, NDCG@50 0.2298, HR@10 0.3058, HR@50 0.5690, MRR 0.1461
+INFO:root:rank 0: epoch 22 done in 12.21s: actual eval inference time : 1.06, actual train time : 10.64s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 23 in 1.16s: NDCG@10 0.1701, NDCG@50 0.2292, HR@10 0.3050, HR@50 0.5720, MRR 0.1445
+INFO:root:rank 0: epoch 23 done in 13.04s: actual eval inference time : 1.02, actual train time : 11.50s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 24 in 1.17s: NDCG@10 0.1741, NDCG@50 0.2320, HR@10 0.3098, HR@50 0.5709, MRR 0.1479
+INFO:root:rank 0: epoch 24 done in 12.47s: actual eval inference time : 1.01, actual train time : 10.95s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 1200 (epoch 25): NDCG@10 0.1881, HR@10 0.3594, HR@50 0.5781, MRR 0.1478 
+INFO:root: rank: 0, batch-stat (train): step 1200 (epoch 25 in 27.61s): 2.167979
+INFO:root:rank 0: eval @ epoch 25 in 1.18s: NDCG@10 0.1741, NDCG@50 0.2316, HR@10 0.3113, HR@50 0.5722, MRR 0.1472
+INFO:root:rank 0: epoch 25 done in 12.52s: actual eval inference time : 1.04, actual train time : 10.94s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 26 in 1.20s: NDCG@10 0.1741, NDCG@50 0.2325, HR@10 0.3065, HR@50 0.5700, MRR 0.1489
+INFO:root:rank 0: epoch 26 done in 12.36s: actual eval inference time : 1.05, actual train time : 10.83s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 1300 (epoch 27): NDCG@10 0.2006, HR@10 0.3906, HR@50 0.7188, MRR 0.1590 
+INFO:root: rank: 0, batch-stat (train): step 1300 (epoch 27 in 25.78s): 2.124159
+INFO:root:rank 0: eval @ epoch 27 in 1.17s: NDCG@10 0.1718, NDCG@50 0.2309, HR@10 0.3079, HR@50 0.5747, MRR 0.1457
+INFO:root:rank 0: epoch 27 done in 12.46s: actual eval inference time : 1.02, actual train time : 10.89s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 28 in 1.28s: NDCG@10 0.1742, NDCG@50 0.2337, HR@10 0.3098, HR@50 0.5790, MRR 0.1481
+INFO:root:rank 0: epoch 28 done in 12.54s: actual eval inference time : 1.12, actual train time : 10.91s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 1400 (epoch 29): NDCG@10 0.1608, HR@10 0.3359, HR@50 0.7422, MRR 0.1308 
+INFO:root: rank: 0, batch-stat (train): step 1400 (epoch 29 in 26.05s): 2.072578
+INFO:root:rank 0: eval @ epoch 29 in 1.17s: NDCG@10 0.1755, NDCG@50 0.2342, HR@10 0.3109, HR@50 0.5776, MRR 0.1494
+INFO:root:rank 0: epoch 29 done in 12.68s: actual eval inference time : 1.03, actual train time : 11.14s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 30 in 2.23s: NDCG@10 0.1744, NDCG@50 0.2338, HR@10 0.3063, HR@50 0.5733, MRR 0.1497
+INFO:root:rank 0: epoch 30 done in 13.34s: actual eval inference time : 1.90, actual train time : 10.75s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 1500 (epoch 31): NDCG@10 0.1268, HR@10 0.2188, HR@50 0.5312, MRR 0.1186 
+INFO:root: rank: 0, batch-stat (train): step 1500 (epoch 31 in 26.58s): 2.210278
+INFO:root:rank 0: eval @ epoch 31 in 1.21s: NDCG@10 0.1774, NDCG@50 0.2360, HR@10 0.3101, HR@50 0.5745, MRR 0.1520
+INFO:root:rank 0: epoch 31 done in 12.13s: actual eval inference time : 1.06, actual train time : 10.54s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 32 in 1.24s: NDCG@10 0.1758, NDCG@50 0.2344, HR@10 0.3142, HR@50 0.5803, MRR 0.1485
+INFO:root:rank 0: epoch 32 done in 12.37s: actual eval inference time : 1.08, actual train time : 10.77s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 1600 (epoch 33): NDCG@10 0.1948, HR@10 0.3594, HR@50 0.6953, MRR 0.1653 
+INFO:root: rank: 0, batch-stat (train): step 1600 (epoch 33 in 25.74s): 2.088093
+INFO:root:rank 0: eval @ epoch 33 in 1.23s: NDCG@10 0.1779, NDCG@50 0.2363, HR@10 0.3131, HR@50 0.5767, MRR 0.1520
+INFO:root:rank 0: epoch 33 done in 12.62s: actual eval inference time : 1.07, actual train time : 10.99s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 34 in 1.20s: NDCG@10 0.1752, NDCG@50 0.2344, HR@10 0.3114, HR@50 0.5786, MRR 0.1489
+INFO:root:rank 0: epoch 34 done in 12.14s: actual eval inference time : 1.05, actual train time : 10.58s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 1700 (epoch 35): NDCG@10 0.1612, HR@10 0.2656, HR@50 0.6328, MRR 0.1517 
+INFO:root: rank: 0, batch-stat (train): step 1700 (epoch 35 in 25.82s): 2.066313
+INFO:root:rank 0: eval @ epoch 35 in 1.20s: NDCG@10 0.1802, NDCG@50 0.2398, HR@10 0.3132, HR@50 0.5831, MRR 0.1549
+INFO:root:rank 0: epoch 35 done in 12.53s: actual eval inference time : 1.04, actual train time : 10.95s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 36 in 1.23s: NDCG@10 0.1783, NDCG@50 0.2370, HR@10 0.3147, HR@50 0.5805, MRR 0.1519
+INFO:root:rank 0: epoch 36 done in 12.45s: actual eval inference time : 1.07, actual train time : 10.89s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 1800 (epoch 37): NDCG@10 0.1955, HR@10 0.3359, HR@50 0.6875, MRR 0.1712 
+INFO:root: rank: 0, batch-stat (train): step 1800 (epoch 37 in 25.94s): 2.009107
+INFO:root:rank 0: eval @ epoch 37 in 1.19s: NDCG@10 0.1812, NDCG@50 0.2405, HR@10 0.3124, HR@50 0.5798, MRR 0.1565
+INFO:root:rank 0: epoch 37 done in 12.62s: actual eval inference time : 1.03, actual train time : 11.04s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 38 in 1.21s: NDCG@10 0.1786, NDCG@50 0.2367, HR@10 0.3159, HR@50 0.5780, MRR 0.1518
+INFO:root:rank 0: epoch 38 done in 13.16s: actual eval inference time : 1.06, actual train time : 11.61s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 1900 (epoch 39): NDCG@10 0.1890, HR@10 0.3516, HR@50 0.7031, MRR 0.1567 
+INFO:root: rank: 0, batch-stat (train): step 1900 (epoch 39 in 26.61s): 2.090758
+INFO:root:rank 0: eval @ epoch 39 in 1.22s: NDCG@10 0.1775, NDCG@50 0.2385, HR@10 0.3096, HR@50 0.5833, MRR 0.1531
+INFO:root:rank 0: epoch 39 done in 12.65s: actual eval inference time : 1.05, actual train time : 11.04s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 40 in 1.06s: NDCG@10 0.1763, NDCG@50 0.2374, HR@10 0.3066, HR@50 0.5816, MRR 0.1523
+INFO:root:rank 0: epoch 40 done in 12.23s: actual eval inference time : 0.92, actual train time : 10.81s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 2000 (epoch 41): NDCG@10 0.1622, HR@10 0.3203, HR@50 0.6094, MRR 0.1321 
+INFO:root: rank: 0, batch-stat (train): step 2000 (epoch 41 in 24.52s): 2.106379
+INFO:root:rank 0: eval @ epoch 41 in 1.06s: NDCG@10 0.1809, NDCG@50 0.2405, HR@10 0.3175, HR@50 0.5871, MRR 0.1546
+INFO:root:rank 0: epoch 41 done in 10.51s: actual eval inference time : 0.95, actual train time : 9.05s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 42 in 1.00s: NDCG@10 0.1785, NDCG@50 0.2398, HR@10 0.3096, HR@50 0.5868, MRR 0.1541
+INFO:root:rank 0: epoch 42 done in 10.09s: actual eval inference time : 0.89, actual train time : 8.80s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 2100 (epoch 43): NDCG@10 0.2044, HR@10 0.3750, HR@50 0.6562, MRR 0.1707 
+INFO:root: rank: 0, batch-stat (train): step 2100 (epoch 43 in 21.44s): 2.038492
+INFO:root:rank 0: eval @ epoch 43 in 0.99s: NDCG@10 0.1831, NDCG@50 0.2426, HR@10 0.3184, HR@50 0.5871, MRR 0.1571
+INFO:root:rank 0: epoch 43 done in 10.48s: actual eval inference time : 0.89, actual train time : 9.10s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 44 in 1.06s: NDCG@10 0.1791, NDCG@50 0.2396, HR@10 0.3147, HR@50 0.5877, MRR 0.1534
+INFO:root:rank 0: epoch 44 done in 10.54s: actual eval inference time : 0.94, actual train time : 9.12s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 2200 (epoch 45): NDCG@10 0.2012, HR@10 0.3594, HR@50 0.6172, MRR 0.1707 
+INFO:root: rank: 0, batch-stat (train): step 2200 (epoch 45 in 21.85s): 2.074881
+INFO:root:rank 0: eval @ epoch 45 in 1.04s: NDCG@10 0.1800, NDCG@50 0.2394, HR@10 0.3156, HR@50 0.5838, MRR 0.1540
+INFO:root:rank 0: epoch 45 done in 10.63s: actual eval inference time : 0.92, actual train time : 9.19s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 46 in 1.02s: NDCG@10 0.1815, NDCG@50 0.2410, HR@10 0.3139, HR@50 0.5823, MRR 0.1564
+INFO:root:rank 0: epoch 46 done in 10.44s: actual eval inference time : 0.91, actual train time : 9.06s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 2300 (epoch 47): NDCG@10 0.1267, HR@10 0.2578, HR@50 0.6797, MRR 0.1099 
+INFO:root: rank: 0, batch-stat (train): step 2300 (epoch 47 in 22.39s): 2.106615
+INFO:root:rank 0: eval @ epoch 47 in 1.04s: NDCG@10 0.1834, NDCG@50 0.2429, HR@10 0.3167, HR@50 0.5854, MRR 0.1580
+INFO:root:rank 0: epoch 47 done in 11.08s: actual eval inference time : 0.93, actual train time : 9.66s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 48 in 1.02s: NDCG@10 0.1824, NDCG@50 0.2422, HR@10 0.3144, HR@50 0.5853, MRR 0.1575
+INFO:root:rank 0: epoch 48 done in 10.62s: actual eval inference time : 0.91, actual train time : 9.24s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 49 in 1.05s: NDCG@10 0.1799, NDCG@50 0.2400, HR@10 0.3127, HR@50 0.5834, MRR 0.1547
+INFO:root:rank 0: epoch 49 done in 10.60s: actual eval inference time : 0.93, actual train time : 9.20s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 2400 (epoch 50): NDCG@10 0.2269, HR@10 0.4062, HR@50 0.6953, MRR 0.1856 
+INFO:root: rank: 0, batch-stat (train): step 2400 (epoch 50 in 23.07s): 1.967535
+INFO:root:rank 0: eval @ epoch 50 in 1.00s: NDCG@10 0.1815, NDCG@50 0.2419, HR@10 0.3141, HR@50 0.5861, MRR 0.1566
+INFO:root:rank 0: epoch 50 done in 10.74s: actual eval inference time : 0.89, actual train time : 9.35s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 51 in 1.05s: NDCG@10 0.1821, NDCG@50 0.2418, HR@10 0.3177, HR@50 0.5864, MRR 0.1562
+INFO:root:rank 0: epoch 51 done in 10.76s: actual eval inference time : 0.94, actual train time : 9.37s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 2500 (epoch 52): NDCG@10 0.2236, HR@10 0.3828, HR@50 0.6797, MRR 0.1926 
+INFO:root: rank: 0, batch-stat (train): step 2500 (epoch 52 in 22.22s): 2.071325
+INFO:root:rank 0: eval @ epoch 52 in 1.05s: NDCG@10 0.1793, NDCG@50 0.2394, HR@10 0.3159, HR@50 0.5874, MRR 0.1532
+INFO:root:rank 0: epoch 52 done in 10.58s: actual eval inference time : 0.93, actual train time : 9.13s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 53 in 1.05s: NDCG@10 0.1825, NDCG@50 0.2423, HR@10 0.3177, HR@50 0.5871, MRR 0.1567
+INFO:root:rank 0: epoch 53 done in 10.23s: actual eval inference time : 0.94, actual train time : 8.82s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 2600 (epoch 54): NDCG@10 0.1844, HR@10 0.3594, HR@50 0.6719, MRR 0.1506 
+INFO:root: rank: 0, batch-stat (train): step 2600 (epoch 54 in 21.62s): 2.019251
+INFO:root:rank 0: eval @ epoch 54 in 0.96s: NDCG@10 0.1821, NDCG@50 0.2418, HR@10 0.3161, HR@50 0.5849, MRR 0.1566
+INFO:root:rank 0: epoch 54 done in 10.58s: actual eval inference time : 0.86, actual train time : 9.23s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 55 in 0.98s: NDCG@10 0.1833, NDCG@50 0.2424, HR@10 0.3190, HR@50 0.5858, MRR 0.1572
+INFO:root:rank 0: epoch 55 done in 10.50s: actual eval inference time : 0.87, actual train time : 9.17s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 2700 (epoch 56): NDCG@10 0.1789, HR@10 0.3125, HR@50 0.5938, MRR 0.1527 
+INFO:root: rank: 0, batch-stat (train): step 2700 (epoch 56 in 21.94s): 2.124835
+INFO:root:rank 0: eval @ epoch 56 in 1.12s: NDCG@10 0.1833, NDCG@50 0.2439, HR@10 0.3156, HR@50 0.5882, MRR 0.1585
+INFO:root:rank 0: epoch 56 done in 10.75s: actual eval inference time : 0.99, actual train time : 9.25s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 57 in 1.06s: NDCG@10 0.1818, NDCG@50 0.2431, HR@10 0.3124, HR@50 0.5892, MRR 0.1576
+INFO:root:rank 0: epoch 57 done in 10.26s: actual eval inference time : 0.94, actual train time : 8.86s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 2800 (epoch 58): NDCG@10 0.1681, HR@10 0.3047, HR@50 0.6172, MRR 0.1420 
+INFO:root: rank: 0, batch-stat (train): step 2800 (epoch 58 in 21.84s): 2.057929
+INFO:root:rank 0: eval @ epoch 58 in 1.05s: NDCG@10 0.1817, NDCG@50 0.2406, HR@10 0.3180, HR@50 0.5844, MRR 0.1553
+INFO:root:rank 0: epoch 58 done in 10.69s: actual eval inference time : 0.94, actual train time : 9.27s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 59 in 1.00s: NDCG@10 0.1823, NDCG@50 0.2404, HR@10 0.3220, HR@50 0.5848, MRR 0.1549
+INFO:root:rank 0: epoch 59 done in 9.76s: actual eval inference time : 0.89, actual train time : 8.50s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 2900 (epoch 60): NDCG@10 0.1835, HR@10 0.3828, HR@50 0.6328, MRR 0.1395 
+INFO:root: rank: 0, batch-stat (train): step 2900 (epoch 60 in 21.18s): 2.079455
+INFO:root:rank 0: eval @ epoch 60 in 1.01s: NDCG@10 0.1845, NDCG@50 0.2440, HR@10 0.3177, HR@50 0.5863, MRR 0.1592
+INFO:root:rank 0: epoch 60 done in 10.54s: actual eval inference time : 0.90, actual train time : 9.14s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 61 in 0.99s: NDCG@10 0.1832, NDCG@50 0.2438, HR@10 0.3139, HR@50 0.5846, MRR 0.1590
+INFO:root:rank 0: epoch 61 done in 10.55s: actual eval inference time : 0.89, actual train time : 9.21s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 3000 (epoch 62): NDCG@10 0.1994, HR@10 0.3594, HR@50 0.6797, MRR 0.1693 
+INFO:root: rank: 0, batch-stat (train): step 3000 (epoch 62 in 21.68s): 1.956923
+INFO:root:rank 0: eval @ epoch 62 in 0.99s: NDCG@10 0.1831, NDCG@50 0.2426, HR@10 0.3204, HR@50 0.5882, MRR 0.1566
+INFO:root:rank 0: epoch 62 done in 10.38s: actual eval inference time : 0.89, actual train time : 9.02s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 63 in 1.00s: NDCG@10 0.1851, NDCG@50 0.2442, HR@10 0.3225, HR@50 0.5892, MRR 0.1585
+INFO:root:rank 0: epoch 63 done in 10.51s: actual eval inference time : 0.89, actual train time : 9.15s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 3100 (epoch 64): NDCG@10 0.1641, HR@10 0.3281, HR@50 0.6719, MRR 0.1325 
+INFO:root: rank: 0, batch-stat (train): step 3100 (epoch 64 in 21.68s): 2.018808
+INFO:root:rank 0: eval @ epoch 64 in 1.08s: NDCG@10 0.1846, NDCG@50 0.2446, HR@10 0.3195, HR@50 0.5904, MRR 0.1588
+INFO:root:rank 0: epoch 64 done in 10.49s: actual eval inference time : 0.97, actual train time : 9.04s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 65 in 1.04s: NDCG@10 0.1845, NDCG@50 0.2449, HR@10 0.3185, HR@50 0.5902, MRR 0.1594
+INFO:root:rank 0: epoch 65 done in 10.79s: actual eval inference time : 0.92, actual train time : 9.42s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 3200 (epoch 66): NDCG@10 0.2008, HR@10 0.3828, HR@50 0.7656, MRR 0.1645 
+INFO:root: rank: 0, batch-stat (train): step 3200 (epoch 66 in 22.31s): 1.946579
+INFO:root:rank 0: eval @ epoch 66 in 1.07s: NDCG@10 0.1864, NDCG@50 0.2452, HR@10 0.3238, HR@50 0.5897, MRR 0.1597
+INFO:root:rank 0: epoch 66 done in 10.80s: actual eval inference time : 0.95, actual train time : 9.36s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 67 in 1.12s: NDCG@10 0.1836, NDCG@50 0.2436, HR@10 0.3204, HR@50 0.5909, MRR 0.1573
+INFO:root:rank 0: epoch 67 done in 10.56s: actual eval inference time : 1.00, actual train time : 9.13s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 3300 (epoch 68): NDCG@10 0.1930, HR@10 0.3750, HR@50 0.6797, MRR 0.1548 
+INFO:root: rank: 0, batch-stat (train): step 3300 (epoch 68 in 22.19s): 2.061622
+INFO:root:rank 0: eval @ epoch 68 in 1.01s: NDCG@10 0.1846, NDCG@50 0.2440, HR@10 0.3207, HR@50 0.5889, MRR 0.1582
+INFO:root:rank 0: epoch 68 done in 10.61s: actual eval inference time : 0.91, actual train time : 9.21s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 69 in 1.14s: NDCG@10 0.1856, NDCG@50 0.2457, HR@10 0.3205, HR@50 0.5914, MRR 0.1601
+INFO:root:rank 0: epoch 69 done in 10.88s: actual eval inference time : 1.02, actual train time : 9.40s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 3400 (epoch 70): NDCG@10 0.2110, HR@10 0.3359, HR@50 0.6094, MRR 0.1881 
+INFO:root: rank: 0, batch-stat (train): step 3400 (epoch 70 in 22.07s): 2.081451
+INFO:root:rank 0: eval @ epoch 70 in 1.02s: NDCG@10 0.1833, NDCG@50 0.2433, HR@10 0.3180, HR@50 0.5887, MRR 0.1576
+INFO:root:rank 0: epoch 70 done in 10.46s: actual eval inference time : 0.92, actual train time : 9.08s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 71 in 1.05s: NDCG@10 0.1887, NDCG@50 0.2468, HR@10 0.3267, HR@50 0.5877, MRR 0.1619
+INFO:root:rank 0: epoch 71 done in 10.57s: actual eval inference time : 0.93, actual train time : 9.17s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 3500 (epoch 72): NDCG@10 0.1946, HR@10 0.3203, HR@50 0.5781, MRR 0.1717 
+INFO:root: rank: 0, batch-stat (train): step 3500 (epoch 72 in 21.84s): 2.086951
+INFO:root:rank 0: eval @ epoch 72 in 0.96s: NDCG@10 0.1862, NDCG@50 0.2456, HR@10 0.3214, HR@50 0.5884, MRR 0.1605
+INFO:root:rank 0: epoch 72 done in 10.32s: actual eval inference time : 0.86, actual train time : 8.99s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 73 in 0.97s: NDCG@10 0.1863, NDCG@50 0.2446, HR@10 0.3235, HR@50 0.5871, MRR 0.1595
+INFO:root:rank 0: epoch 73 done in 10.33s: actual eval inference time : 0.86, actual train time : 9.03s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 74 in 1.04s: NDCG@10 0.1852, NDCG@50 0.2448, HR@10 0.3175, HR@50 0.5866, MRR 0.1602
+INFO:root:rank 0: epoch 74 done in 10.37s: actual eval inference time : 0.92, actual train time : 8.99s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 3600 (epoch 75): NDCG@10 0.1829, HR@10 0.3203, HR@50 0.6406, MRR 0.1605 
+INFO:root: rank: 0, batch-stat (train): step 3600 (epoch 75 in 22.41s): 1.995837
+INFO:root:rank 0: eval @ epoch 75 in 1.06s: NDCG@10 0.1842, NDCG@50 0.2445, HR@10 0.3169, HR@50 0.5887, MRR 0.1592
+INFO:root:rank 0: epoch 75 done in 10.67s: actual eval inference time : 0.95, actual train time : 9.24s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 76 in 0.99s: NDCG@10 0.1853, NDCG@50 0.2458, HR@10 0.3197, HR@50 0.5929, MRR 0.1599
+INFO:root:rank 0: epoch 76 done in 10.47s: actual eval inference time : 0.89, actual train time : 9.14s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 3700 (epoch 77): NDCG@10 0.2522, HR@10 0.4297, HR@50 0.7500, MRR 0.2166 
+INFO:root: rank: 0, batch-stat (train): step 3700 (epoch 77 in 21.90s): 2.006610
+INFO:root:rank 0: eval @ epoch 77 in 1.00s: NDCG@10 0.1863, NDCG@50 0.2462, HR@10 0.3202, HR@50 0.5899, MRR 0.1610
+INFO:root:rank 0: epoch 77 done in 10.67s: actual eval inference time : 0.90, actual train time : 9.30s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 78 in 1.00s: NDCG@10 0.1856, NDCG@50 0.2456, HR@10 0.3189, HR@50 0.5887, MRR 0.1604
+INFO:root:rank 0: epoch 78 done in 10.58s: actual eval inference time : 0.89, actual train time : 9.23s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 3800 (epoch 79): NDCG@10 0.1909, HR@10 0.3281, HR@50 0.6719, MRR 0.1652 
+INFO:root: rank: 0, batch-stat (train): step 3800 (epoch 79 in 22.01s): 1.949875
+INFO:root:rank 0: eval @ epoch 79 in 1.07s: NDCG@10 0.1873, NDCG@50 0.2477, HR@10 0.3192, HR@50 0.5907, MRR 0.1627
+INFO:root:rank 0: epoch 79 done in 10.38s: actual eval inference time : 0.95, actual train time : 8.96s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 80 in 1.01s: NDCG@10 0.1896, NDCG@50 0.2482, HR@10 0.3267, HR@50 0.5902, MRR 0.1631
+INFO:root:rank 0: epoch 80 done in 10.55s: actual eval inference time : 0.90, actual train time : 9.22s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 3900 (epoch 81): NDCG@10 0.1819, HR@10 0.3438, HR@50 0.6797, MRR 0.1519 
+INFO:root: rank: 0, batch-stat (train): step 3900 (epoch 81 in 21.77s): 1.929535
+INFO:root:rank 0: eval @ epoch 81 in 1.00s: NDCG@10 0.1844, NDCG@50 0.2442, HR@10 0.3200, HR@50 0.5891, MRR 0.1585
+INFO:root:rank 0: epoch 81 done in 10.62s: actual eval inference time : 0.89, actual train time : 9.23s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 82 in 0.97s: NDCG@10 0.1847, NDCG@50 0.2447, HR@10 0.3210, HR@50 0.5916, MRR 0.1587
+INFO:root:rank 0: epoch 82 done in 10.10s: actual eval inference time : 0.87, actual train time : 8.83s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 4000 (epoch 83): NDCG@10 0.2118, HR@10 0.3750, HR@50 0.6328, MRR 0.1777 
+INFO:root: rank: 0, batch-stat (train): step 4000 (epoch 83 in 21.36s): 2.028375
+INFO:root:rank 0: eval @ epoch 83 in 0.99s: NDCG@10 0.1847, NDCG@50 0.2445, HR@10 0.3210, HR@50 0.5904, MRR 0.1585
+INFO:root:rank 0: epoch 83 done in 10.24s: actual eval inference time : 0.89, actual train time : 8.87s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 84 in 1.02s: NDCG@10 0.1861, NDCG@50 0.2459, HR@10 0.3192, HR@50 0.5877, MRR 0.1611
+INFO:root:rank 0: epoch 84 done in 10.28s: actual eval inference time : 0.91, actual train time : 8.92s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 4100 (epoch 85): NDCG@10 0.2301, HR@10 0.4141, HR@50 0.7031, MRR 0.1918 
+INFO:root: rank: 0, batch-stat (train): step 4100 (epoch 85 in 21.37s): 1.987658
+INFO:root:rank 0: eval @ epoch 85 in 0.96s: NDCG@10 0.1884, NDCG@50 0.2476, HR@10 0.3248, HR@50 0.5916, MRR 0.1622
+INFO:root:rank 0: epoch 85 done in 10.22s: actual eval inference time : 0.86, actual train time : 8.86s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 86 in 0.99s: NDCG@10 0.1856, NDCG@50 0.2467, HR@10 0.3192, HR@50 0.5944, MRR 0.1605
+INFO:root:rank 0: epoch 86 done in 10.48s: actual eval inference time : 0.88, actual train time : 9.16s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 4200 (epoch 87): NDCG@10 0.2156, HR@10 0.3828, HR@50 0.6250, MRR 0.1790 
+INFO:root: rank: 0, batch-stat (train): step 4200 (epoch 87 in 21.58s): 2.063240
+INFO:root:rank 0: eval @ epoch 87 in 0.99s: NDCG@10 0.1867, NDCG@50 0.2468, HR@10 0.3210, HR@50 0.5927, MRR 0.1611
+INFO:root:rank 0: epoch 87 done in 10.59s: actual eval inference time : 0.89, actual train time : 9.26s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 88 in 0.99s: NDCG@10 0.1840, NDCG@50 0.2445, HR@10 0.3192, HR@50 0.5914, MRR 0.1583
+INFO:root:rank 0: epoch 88 done in 10.38s: actual eval inference time : 0.88, actual train time : 9.04s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 4300 (epoch 89): NDCG@10 0.1813, HR@10 0.3281, HR@50 0.6562, MRR 0.1534 
+INFO:root: rank: 0, batch-stat (train): step 4300 (epoch 89 in 21.28s): 2.046177
+INFO:root:rank 0: eval @ epoch 89 in 1.04s: NDCG@10 0.1859, NDCG@50 0.2458, HR@10 0.3209, HR@50 0.5916, MRR 0.1601
+INFO:root:rank 0: epoch 89 done in 9.88s: actual eval inference time : 0.93, actual train time : 8.57s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 90 in 0.96s: NDCG@10 0.1856, NDCG@50 0.2462, HR@10 0.3210, HR@50 0.5937, MRR 0.1600
+INFO:root:rank 0: epoch 90 done in 10.50s: actual eval inference time : 0.86, actual train time : 9.17s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 4400 (epoch 91): NDCG@10 0.1943, HR@10 0.3672, HR@50 0.6406, MRR 0.1584 
+INFO:root: rank: 0, batch-stat (train): step 4400 (epoch 91 in 21.43s): 2.007295
+INFO:root:rank 0: eval @ epoch 91 in 1.05s: NDCG@10 0.1866, NDCG@50 0.2474, HR@10 0.3187, HR@50 0.5925, MRR 0.1619
+INFO:root:rank 0: epoch 91 done in 10.26s: actual eval inference time : 0.94, actual train time : 8.85s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 92 in 1.12s: NDCG@10 0.1870, NDCG@50 0.2474, HR@10 0.3209, HR@50 0.5932, MRR 0.1616
+INFO:root:rank 0: epoch 92 done in 10.66s: actual eval inference time : 1.00, actual train time : 9.21s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 4500 (epoch 93): NDCG@10 0.1796, HR@10 0.3359, HR@50 0.6797, MRR 0.1492 
+INFO:root: rank: 0, batch-stat (train): step 4500 (epoch 93 in 21.55s): 2.137875
+INFO:root:rank 0: eval @ epoch 93 in 1.03s: NDCG@10 0.1861, NDCG@50 0.2459, HR@10 0.3222, HR@50 0.5917, MRR 0.1601
+INFO:root:rank 0: epoch 93 done in 10.31s: actual eval inference time : 0.92, actual train time : 8.97s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 94 in 1.06s: NDCG@10 0.1893, NDCG@50 0.2485, HR@10 0.3260, HR@50 0.5930, MRR 0.1628
+INFO:root:rank 0: epoch 94 done in 10.44s: actual eval inference time : 0.95, actual train time : 9.04s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 4600 (epoch 95): NDCG@10 0.1733, HR@10 0.3281, HR@50 0.6250, MRR 0.1413 
+INFO:root: rank: 0, batch-stat (train): step 4600 (epoch 95 in 22.24s): 1.973364
+INFO:root:rank 0: eval @ epoch 95 in 1.09s: NDCG@10 0.1884, NDCG@50 0.2480, HR@10 0.3237, HR@50 0.5934, MRR 0.1624
+INFO:root:rank 0: epoch 95 done in 10.93s: actual eval inference time : 0.98, actual train time : 9.47s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 96 in 1.07s: NDCG@10 0.1878, NDCG@50 0.2489, HR@10 0.3222, HR@50 0.5972, MRR 0.1625
+INFO:root:rank 0: epoch 96 done in 10.71s: actual eval inference time : 0.95, actual train time : 9.30s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 4700 (epoch 97): NDCG@10 0.1942, HR@10 0.3594, HR@50 0.6953, MRR 0.1628 
+INFO:root: rank: 0, batch-stat (train): step 4700 (epoch 97 in 22.49s): 2.054571
+INFO:root:rank 0: eval @ epoch 97 in 1.02s: NDCG@10 0.1874, NDCG@50 0.2476, HR@10 0.3235, HR@50 0.5957, MRR 0.1612
+INFO:root:rank 0: epoch 97 done in 10.87s: actual eval inference time : 0.91, actual train time : 9.47s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 98 in 1.02s: NDCG@10 0.1899, NDCG@50 0.2488, HR@10 0.3272, HR@50 0.5937, MRR 0.1633
+INFO:root:rank 0: epoch 98 done in 10.77s: actual eval inference time : 0.90, actual train time : 9.40s in 48 steps
+
+INFO:root:rank 0: eval @ epoch 99 in 1.07s: NDCG@10 0.1860, NDCG@50 0.2458, HR@10 0.3219, HR@50 0.5909, MRR 0.1601
+INFO:root:rank 0: epoch 99 done in 10.69s: actual eval inference time : 0.96, actual train time : 9.28s in 48 steps
+
+INFO:root:rank 0:  batch-stat (eval): iter 4800 (epoch 100): NDCG@10 0.2403, HR@10 0.4531, HR@50 0.6562, MRR 0.1857 
+INFO:root: rank: 0, batch-stat (train): step 4800 (epoch 100 in 23.27s): 1.997259
+INFO:root:rank 0: eval @ epoch 100 in 1.05s: NDCG@10 0.1850, NDCG@50 0.2451, HR@10 0.3197, HR@50 0.5896, MRR 0.1596
+INFO:root:rank 0: epoch 100 done in 10.64s: actual eval inference time : 0.94, actual train time : 9.22s in 48 steps
+
