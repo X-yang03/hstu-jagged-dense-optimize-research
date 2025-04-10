@@ -67,7 +67,7 @@ for i in range(1, B+1):
 x_offsets = torch.tensor(x_offsets, device="cuda") # 转换为tensor
 
 n += 11  #符合原本hstu的流程
-head, d = 2 , 25
+head, d = 8 , 25
 sum_N = int(x_offsets[-1])
 
 print('benchmark config: sum_N: {}, head: {}, d: {}, B: {}, n: {}'.format(sum_N, head, d, B, n))
@@ -92,9 +92,15 @@ avg_forward_diff = []
 max_forward_diff = []
 avg_forward = []
 
+avg_forward_diff_ratio = []
+max_forward_diff_ratio = []
+
 avg_backward_diff = []
 max_backward_diff = []
 avg_backward = []
+
+avg_backward_diff_ratio = []
+max_backward_diff_ratio = []
 
 test_num = 10
 for _ in tqdm(range(test_num)):
@@ -109,7 +115,10 @@ for _ in tqdm(range(test_num)):
     assert(torch.allclose(einsum_attn, fused_attn, atol=1e-4))
     avg_forward_diff.append(torch.mean(torch.abs(einsum_attn - fused_attn)))
     max_forward_diff.append(torch.max(torch.abs(einsum_attn - fused_attn)))
-    avg_forward.append(torch.abs(torch.mean(einsum_attn)))
+    # avg_forward.append(torch.abs(torch.mean(einsum_attn)))
+    relative_error = torch.abs((einsum_attn - fused_attn)) / (torch.abs(einsum_attn) + 1e-8)
+    avg_forward_diff_ratio.append(torch.mean(relative_error))
+    max_forward_diff_ratio.append(torch.max(relative_error))
 
     y_true = torch.randn_like(einsum_attn)
     
@@ -136,17 +145,34 @@ for _ in tqdm(range(test_num)):
     max_backward_diff.append(torch.max(torch.abs(v.grad - v1.grad)))
     max_backward_diff.append(torch.max(torch.abs(rab.grad - rab1.grad)))
 
-    avg_backward.append(torch.abs(torch.mean(q.grad)))
-    avg_backward.append(torch.abs(torch.mean(k.grad)))
-    avg_backward.append(torch.abs(torch.mean(v.grad)))
-    avg_backward.append(torch.abs(torch.mean(rab.grad)))
 
-forward_diff_ratio = [avg_forward_diff[i]/avg_forward[i] for i in range(len(avg_forward_diff))]
+    relative_error = torch.abs((q.grad - q1.grad)) / (torch.abs(q.grad) + 1e-8)
+    avg_backward_diff_ratio.append(torch.mean(relative_error))
+    max_backward_diff_ratio.append(torch.max(relative_error))
+
+    relative_error = torch.abs((k.grad - k1.grad)) / (torch.abs(k.grad) + 1e-8)
+    avg_backward_diff_ratio.append(torch.mean(relative_error))
+    max_backward_diff_ratio.append(torch.max(relative_error))
+
+    relative_error = torch.abs((v.grad - v1.grad)) / (torch.abs(v.grad) + 1e-8)
+    avg_backward_diff_ratio.append(torch.mean(relative_error))
+    max_backward_diff_ratio.append(torch.max(relative_error))
+
+    relative_error = torch.abs((rab.grad - rab1.grad)) / (torch.abs(rab.grad) + 1e-8)
+    avg_backward_diff_ratio.append(torch.mean(relative_error))
+    max_backward_diff_ratio.append(torch.max(relative_error))
+
+    # avg_backward.append(torch.abs(torch.mean(q.grad)))
+    # avg_backward.append(torch.abs(torch.mean(k.grad)))
+    # avg_backward.append(torch.abs(torch.mean(v.grad)))
+    # avg_backward.append(torch.abs(torch.mean(rab.grad)))
+
+# forward_diff_ratio = [avg_forward_diff[i]/avg_forward[i] for i in range(len(avg_forward_diff))]
 print("avg_forward_diff: ", sum(avg_forward_diff)/len(avg_forward_diff))
 print("max_forward_diff: ", max(max_forward_diff))
-print("diff ratio avg：{}, max: {}".format(sum(forward_diff_ratio)/len(forward_diff_ratio), max(forward_diff_ratio)))
+print("diff ratio avg：{}, max: {}".format(sum(avg_forward_diff_ratio)/len(avg_forward_diff_ratio), max(max_forward_diff_ratio)))
 
-backward_diff_ratio = [avg_backward_diff[i]/avg_backward[i] for i in range(len(avg_backward_diff))]
+# backward_diff_ratio = [avg_backward_diff[i]/avg_backward[i] for i in range(len(avg_backward_diff))]
 print("avg_backward_diff: ", sum(avg_backward_diff)/len(avg_backward_diff))
 print("max_backward_diff: ", max(max_backward_diff))
-print("diff ratio avg：{}, max: {}".format(sum(backward_diff_ratio)/len(backward_diff_ratio), max(backward_diff_ratio)))
+print("diff ratio avg：{}, max: {}".format(sum(avg_backward_diff_ratio)/len(avg_backward_diff_ratio), max(max_backward_diff_ratio)))

@@ -56,21 +56,21 @@ def origin_einsum_attn(q, k, v, rab, attn_mask, B, n, head, d, x_offsets):
         )[0]
     return attn_output
 
-seq_len = [128, 120, 256, 260, 512, 510, 1024, 1020, 100, 200, 300, 400]
+seq_len = [128, 120, 256, 260, 512, 510,100, 200, 300, 400]
 max_seq = 200
 min_seq = 100
 n = 0
 B = 128
 x_offsets = [0]
 for i in range(1, B+1):
-    #rand_seq_len = random.choice(seq_len)
+    # rand_seq_len = random.choice(seq_len)
     rand_seq_len = random.randint(min_seq, max_seq)
     n = max(n, rand_seq_len)
     x_offsets.append(x_offsets[-1] + rand_seq_len) # 生成一个长度为B的序列，每个元素为0-1024之间的随机数
 x_offsets = torch.tensor(x_offsets, device="cuda") # 转换为tensor
 
 n += 11
-head, d = 2 , 25
+head, d = 8 , 32
 sum_N = int(x_offsets[-1])
 
 print('benchmark config: sum_N: {}, head: {}, d: {}, B: {}, n: {}'.format(sum_N, head, d, B, n))
@@ -101,7 +101,7 @@ fused_forward_time = []
 einsum_backward_time = []
 fused_backward_time = []
 
-test_num = 10
+test_num = 50
 for _ in tqdm(range(test_num)):
     q, k, v, rab, q1, k1, v1, rab1, attn_mask = get_input(sum_N, head, d, B, n)
 
