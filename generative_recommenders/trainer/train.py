@@ -27,6 +27,7 @@ import gin
 
 import torch
 import torch.distributed as dist
+import torch.profiler as profiler
 
 from generative_recommenders.data.eval import (
     _avg,
@@ -297,26 +298,44 @@ def train_fn(
         logging.info(f"Rank {rank}: disabling summary writer")
 
     last_training_time = time.time()
+    start_time = time.time()
     torch.autograd.set_detect_anomaly(True)
 
     batch_id = 0
     epoch = 0
+    total_training_time = 0
+    total_steps = 0
+    total_inference_time = 0
+
+    target_epoch = 5
+#     with profiler.profile(
+#     activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
+#     schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=1),
+#     #on_trace_ready=torch.profiler.tensorboard_trace_handler(log_dir),
+#     #record_shapes=True,  # 可以保留
+#     profile_memory=False,  # 禁用内存分析
+#     with_stack=True
+# ) as prof:
     for epoch in range(num_epochs):
+        epoch_start_time = time.time()
+        actual_train_time = 0
+        now_step = batch_id
         if train_data_sampler is not None:
             train_data_sampler.set_epoch(epoch)
         if eval_data_sampler is not None:
             eval_data_sampler.set_epoch(epoch)
-        model.train()
+        model.train() 
+        time1 = time.time()
+        get_data_time = 0
         for row in iter(train_data_loader):
+            get_data_time += time.time() - time1
             seq_features, target_ids, target_ratings = movielens_seq_features_from_row(
                 row,
                 device=device,
                 max_output_length=gr_output_length + 1,
             )
-
             if (batch_id % eval_interval) == 0:
                 model.eval()
-
                 eval_state = get_eval_state(
                     model=model.module,
                     all_item_ids=dataset.all_item_ids,
@@ -330,6 +349,7 @@ def train_fn(
                     device=device,
                     float_dtype=torch.bfloat16 if main_module_bf16 else None,
                 )
+                #此处开始推理eval,只进行forward
                 eval_dict = eval_metrics_v2_from_tensors(
                     eval_state,
                     model.module,
@@ -350,6 +370,8 @@ def train_fn(
                     + f"MRR {_avg(eval_dict['mrr'], world_size):.4f} "
                 )
                 model.train()
+                
+
 
             # TODO: consider separating this out?
             B, N = seq_features.past_ids.shape
@@ -361,6 +383,7 @@ def train_fn(
 
             opt.zero_grad()
             input_embeddings = model.module.get_item_embeddings(seq_features.past_ids)
+            train_start_time = time.time()
             seq_embeddings = model(
                 past_lengths=seq_features.past_lengths,
                 past_ids=seq_features.past_ids,
@@ -403,6 +426,8 @@ def train_fn(
                 writer.add_scalar("losses/main_loss", main_loss, batch_id)
 
             loss.backward()
+            actual_train_time += time.time() - train_start_time
+            #prof.step()
 
             # Optional linear warmup.
             if batch_id < num_warmup_steps:
@@ -427,6 +452,7 @@ def train_fn(
             opt.step()
 
             batch_id += 1
+            time1 = time.time()
 
         def is_full_eval(epoch: int) -> bool:
             return (epoch % full_eval_every_n) == 0
@@ -448,10 +474,12 @@ def train_fn(
             device=device,
             float_dtype=torch.bfloat16 if main_module_bf16 else None,
         )
+        actual_inference_time = 0
         for eval_iter, row in enumerate(iter(eval_data_loader)):
             seq_features, target_ids, target_ratings = movielens_seq_features_from_row(
                 row, device=device, max_output_length=gr_output_length + 1
             )
+            actual_start_time = time.time()
             eval_dict = eval_metrics_v2_from_tensors(
                 eval_state,
                 model.module,
@@ -461,6 +489,7 @@ def train_fn(
                 user_max_batch_size=eval_user_max_batch_size,
                 dtype=torch.bfloat16 if main_module_bf16 else None,
             )
+            actual_inference_time += time.time() - actual_start_time
 
             if eval_dict_all is None:
                 eval_dict_all = {}
@@ -516,8 +545,27 @@ def train_fn(
             f"rank {rank}: eval @ epoch {epoch} in {time.time() - eval_start_time:.2f}s: "
             f"NDCG@10 {ndcg_10:.4f}, NDCG@50 {ndcg_50:.4f}, HR@10 {hr_10:.4f}, HR@50 {hr_50:.4f}, MRR {mrr:.4f}"
         )
-        last_training_time = time.time()
+        logging.info(
+            f"rank {rank}: epoch {epoch} done in {time.time() - epoch_start_time:.2f}s: "
+            f"actual eval inference time : {actual_inference_time:.2f}, "
+            f"get data time : {get_data_time:.2f}s, "
+            f"actual train time : {actual_train_time:.2f}s in {batch_id - now_step} steps\n"
+        )
+        total_training_time += actual_train_time
+        total_inference_time += actual_inference_time
+        total_steps += batch_id - now_step
 
+    #prof.export_chrome_trace("v3-200-32.json")
+    total_time = time.time() - start_time
+    logging.info(
+        f"total training time : {total_training_time:.2f}s, \n"
+        f"total inference time : {total_inference_time:.2f}s, \n"
+        f"total steps : {total_steps}, \n"
+        f"total time : {total_time:.2f}s, \n"
+        f"total throughput : {total_steps / total_time:.2f} steps/s, {num_epochs / total_time:.2f} epochs/s \n"
+        f"total inference throughput : {num_epochs / total_inference_time:.2f} steps/s, \n"
+        f"total training throughput : {total_steps / total_training_time:.2f} steps/s"
+    )
     if rank == 0:
         if writer is not None:
             writer.flush()
