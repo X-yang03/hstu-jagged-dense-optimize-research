@@ -50,8 +50,10 @@ def create_data_loader(
         dataset,
         batch_size=batch_size,
         # shuffle=True, cannot use with sampler
-        num_workers=0,
+        # num_workers=0,
+        num_workers = num_workers or 0,
         sampler=sampler,
         # prefetch_factor=prefetch_factor,
+        persistent_workers=True
     )
     return sampler, data_loader
