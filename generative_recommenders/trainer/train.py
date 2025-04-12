@@ -307,7 +307,9 @@ def train_fn(
     total_steps = 0
     total_inference_time = 0
 
-    target_epoch = 5
+    target_epoch = 3
+    infer_mem_use = []
+    train_mem_use = []
 #     with profiler.profile(
 #     activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
 #     schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=1),
@@ -328,6 +330,8 @@ def train_fn(
         time1 = time.time()
         get_data_time = 0
         for row in iter(train_data_loader):
+            torch.cuda.reset_peak_memory_stats()  # 重置历史峰值记录
+
             get_data_time += time.time() - time1
             seq_features, target_ids, target_ratings = movielens_seq_features_from_row(
                 row,
@@ -427,6 +431,8 @@ def train_fn(
 
             loss.backward()
             actual_train_time += time.time() - train_start_time
+            peak_mem = torch.cuda.max_memory_allocated() / 1024**2 
+            train_mem_use.append(peak_mem)
             #prof.step()
 
             # Optional linear warmup.
@@ -475,11 +481,13 @@ def train_fn(
             float_dtype=torch.bfloat16 if main_module_bf16 else None,
         )
         actual_inference_time = 0
+
         for eval_iter, row in enumerate(iter(eval_data_loader)):
             seq_features, target_ids, target_ratings = movielens_seq_features_from_row(
                 row, device=device, max_output_length=gr_output_length + 1
             )
             actual_start_time = time.time()
+            torch.cuda.reset_peak_memory_stats()  # 重置历史峰值记录
             eval_dict = eval_metrics_v2_from_tensors(
                 eval_state,
                 model.module,
@@ -489,6 +497,8 @@ def train_fn(
                 user_max_batch_size=eval_user_max_batch_size,
                 dtype=torch.bfloat16 if main_module_bf16 else None,
             )
+            peak_mem = torch.cuda.max_memory_allocated() / 1024**2 
+            infer_mem_use.append(peak_mem)
             actual_inference_time += time.time() - actual_start_time
 
             if eval_dict_all is None:
@@ -505,6 +515,15 @@ def train_fn(
                     f"Truncating epoch {epoch} eval to {eval_iter + 1} iters to save cost.."
                 )
                 break
+            
+        if epoch == target_epoch:
+            import json
+            with open("./log/origin-20m-infer.json", "w") as f:
+                json.dump(infer_mem_use, f)
+            with open("./log/origin-20m-train.json","w") as f:
+                json.dump(train_mem_use, f)
+            print("prof done")
+            exit()
 
         assert eval_dict_all is not None
         for k, v in eval_dict_all.items():
