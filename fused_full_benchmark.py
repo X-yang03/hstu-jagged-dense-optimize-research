@@ -11,6 +11,18 @@ from fused_hstu_v2.fused_hstu_op_v2 import FusedHSTUOpv2
 from fused_hstu_v3.fused_hstu_op_v3 import FusedHSTUOpv3
 from fused_jagged_hstu.torch_backward import CustomAttentionFunction
 
+from contextlib import contextmanager
+import torch.fx.traceback
+
+@contextmanager
+def no_fx_traceback():
+    orig = torch.fx.traceback.format_stack
+    torch.fx.traceback.format_stack = lambda: []
+    try:
+        yield
+    finally:
+        torch.fx.traceback.format_stack = orig
+
 def get_input(sum_N, head, d, B, n):
     q = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
     k = torch.randn(sum_N, head*d, requires_grad=True, device="cuda")
@@ -60,11 +72,11 @@ seq_len = [128, 120, 256, 260, 512, 510,100, 200, 300, 400]
 max_seq = 200
 min_seq = 100
 n = 0
-B = 128
+B = 64
 x_offsets = [0]
 for i in range(1, B+1):
-    # rand_seq_len = random.choice(seq_len)
-    rand_seq_len = random.randint(min_seq, max_seq)
+    rand_seq_len = random.choice(seq_len)
+    # rand_seq_len = random.randint(min_seq, max_seq)
     n = max(n, rand_seq_len)
     x_offsets.append(x_offsets[-1] + rand_seq_len) # 生成一个长度为B的序列，每个元素为0-1024之间的随机数
 x_offsets = torch.tensor(x_offsets, device="cuda") # 转换为tensor
@@ -87,7 +99,8 @@ for _ in tqdm(range(3)):
     #warmup_einsum_attn = FusedHSTUOp_.apply(q, k, v, rab, attn_mask, head, d, n, x_offsets)
     loss = warmup_einsum_attn.sum()
     loss.backward()
-    warmup_fused_attn = FusedHSTUOpv3.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
+    with no_fx_traceback():
+        warmup_fused_attn = FusedHSTUOpv3.apply(q1, k1, v1, rab1, attn_mask, head, d, n, x_offsets)
     loss1 = warmup_fused_attn.sum()
     loss1.backward()
 print('warm up done')
@@ -117,7 +130,8 @@ for _ in tqdm(range(test_num)):
     einsum_forward_time.append(start_event.elapsed_time(end_event))
 
     start_event.record()
-    fused_attn = FusedHSTUOpv3.apply(q1, k1, v1, rab, attn_mask, head, d, n, x_offsets)
+    with no_fx_traceback():
+        fused_attn = FusedHSTUOpv3.apply(q1, k1, v1, rab, attn_mask, head, d, n, x_offsets)
     end_event.record()
     torch.cuda.synchronize()
     fused_forward_time.append(start_event.elapsed_time(end_event))

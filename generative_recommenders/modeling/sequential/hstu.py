@@ -45,6 +45,18 @@ from generative_recommenders.rails.similarities.module import SimilarityModule
 from fused_jagged_hstu.fused_hstu_op import FusedHSTUOp
 from fused_hstu_v2.fused_hstu_op_v2 import FusedHSTUOpv2
 from fused_hstu_v3.fused_hstu_op_v3 import FusedHSTUOpv3 
+from torch.fx import wrap
+from contextlib import contextmanager
+import torch.fx.traceback
+
+@contextmanager
+def no_fx_traceback():
+    orig = torch.fx.traceback.format_stack
+    torch.fx.traceback.format_stack = lambda: []
+    try:
+        yield
+    finally:
+        torch.fx.traceback.format_stack = orig
 
 TIMESTAMPS_KEY = "timestamps"
 
@@ -148,6 +160,7 @@ class RelativeBucketedTimeAndPositionBasedBias(RelativeAttentionBiasModule):
 HSTUCacheState = Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]  
 
 
+
 def _hstu_attention_maybe_from_cache(  #在rel_bias模式下计算注意力输出
     num_heads: int,
     attention_dim: int,  #dqk
@@ -198,17 +211,18 @@ def _hstu_attention_maybe_from_cache(  #在rel_bias模式下计算注意力输�
     else: #q k 原本是[sum_N, h*dqk]，需要转换为padded形式, 变为[B, n, h*dqk]
     
         if all_timestamps is not None:
-            return FusedHSTUOpv3.apply(
-                q,
-                k,
-                v,
-                rel_attn_bias(all_timestamps).unsqueeze(1),
-                invalid_attn_mask.unsqueeze(0).unsqueeze(0),
-                num_heads,
-                attention_dim,
-                n,
-                x_offsets,
-            ), None, None
+            with no_fx_traceback():
+                return FusedHSTUOpv3.apply(
+                    q,
+                    k,
+                    v,
+                    rel_attn_bias(all_timestamps).unsqueeze(1),
+                    invalid_attn_mask.unsqueeze(0).unsqueeze(0),
+                    num_heads,
+                    attention_dim,
+                    n,
+                    x_offsets,
+                ), None, None
         else:
             rab = torch.zeros(B, 1, n, n, device=q.device)
             attn_output = FusedHSTUOpv3.apply(
