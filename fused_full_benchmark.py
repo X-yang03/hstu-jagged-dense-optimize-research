@@ -9,6 +9,7 @@ from fused_jagged_hstu.fused_hstu_op import FusedHSTUOp
 from fused_jagged_hstu.fused_simpler_op import FusedHSTUOp_
 from fused_hstu_v2.fused_hstu_op_v2 import FusedHSTUOpv2
 from fused_hstu_v3.fused_hstu_op_v3 import FusedHSTUOpv3
+from fused_hstu_v4.fused_hstu_op_v4 import FusedHSTUOpv4
 from fused_jagged_hstu.torch_backward import CustomAttentionFunction
 
 from contextlib import contextmanager
@@ -114,7 +115,7 @@ fused_forward_time = []
 einsum_backward_time = []
 fused_backward_time = []
 
-test_num = 50
+test_num = 10
 for _ in tqdm(range(test_num)):
     q, k, v, rab, q1, k1, v1, rab1, attn_mask = get_input(sum_N, head, d, B, n)
 
